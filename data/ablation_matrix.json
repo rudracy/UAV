@@ -1,0 +1,77 @@
+{
+  "ablation_study_records": [
+    {
+      "configuration": "Fully Tuned Swarm (Optimal Reference)",
+      "theta1_buffer": 2.8,
+      "theta2_fusion": 0.22,
+      "theta3_comm": 5.0,
+      "theta4_mesh": "k=4",
+      "theta5_failover": true,
+      "scalability_index": 89.4,
+      "robustness_index": 91.2,
+      "impact_description": "Baseline Reference (+0.0%)",
+      "p_value_vs_baseline": "< 0.001"
+    },
+    {
+      "configuration": "Revert Safety Buffer (2.8m -> 0.6m)",
+      "theta1_buffer": 0.6,
+      "theta2_fusion": 0.22,
+      "theta3_comm": 5.0,
+      "theta4_mesh": "k=4",
+      "theta5_failover": true,
+      "scalability_index": 81.2,
+      "robustness_index": 58.4,
+      "impact_description": "-32.8% Robustness (Surge in obstacle collisions)",
+      "p_value_vs_baseline": "< 0.001"
+    },
+    {
+      "configuration": "Revert Sensor Fusion (0.22 -> 1.0 raw)",
+      "theta1_buffer": 2.8,
+      "theta2_fusion": 1.0,
+      "theta3_comm": 5.0,
+      "theta4_mesh": "k=4",
+      "theta5_failover": true,
+      "scalability_index": 84.1,
+      "robustness_index": 62.1,
+      "impact_description": "-29.1% Robustness (GPS loss dead-reckoning drift)",
+      "p_value_vs_baseline": "< 0.001"
+    },
+    {
+      "configuration": "Revert Network Topology (k-mesh -> Broadcast)",
+      "theta1_buffer": 2.8,
+      "theta2_fusion": 0.22,
+      "theta3_comm": 20.0,
+      "theta4_mesh": "Broadcast",
+      "theta5_failover": true,
+      "scalability_index": 48.6,
+      "robustness_index": 79.5,
+      "impact_description": "-40.8% Scalability (RF link saturation at N=50)",
+      "p_value_vs_baseline": "< 0.001"
+    },
+    {
+      "configuration": "Revert Failover Reallocation (ON -> OFF)",
+      "theta1_buffer": 2.8,
+      "theta2_fusion": 0.22,
+      "theta3_comm": 5.0,
+      "theta4_mesh": "k=4",
+      "theta5_failover": false,
+      "scalability_index": 82.0,
+      "robustness_index": 66.8,
+      "impact_description": "-24.4% Robustness (Uncovered sector gaps upon failure)",
+      "p_value_vs_baseline": "< 0.001"
+    },
+    {
+      "configuration": "Default Baseline Swarm (All Defaults)",
+      "theta1_buffer": 0.6,
+      "theta2_fusion": 1.0,
+      "theta3_comm": 20.0,
+      "theta4_mesh": "Broadcast",
+      "theta5_failover": false,
+      "scalability_index": 49.2,
+      "robustness_index": 42.6,
+      "impact_description": "Net Improvement: +40.2% Scalability, +48.6% Robustness",
+      "p_value_vs_baseline": "Reference Baseline"
+    }
+  ]
+}
+

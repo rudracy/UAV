@@ -1,243 +1,363 @@
-# Improving Scalability and Robustness of UAV Swarms: A Simulation-Based Parameter Study
+# AERO-SWARM: UAV swarm simulation and comparison
 
-[![GitHub Repository](https://img.shields.io/badge/GitHub-rudracy%2FUAV-181717?style=flat&logo=github)](https://github.com/rudracy/UAV)
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![WebGL / Three.js](https://img.shields.io/badge/Visualization-Three.js%20WebGL-049EF4.svg?logo=three.js&logoColor=white)](https://threejs.org/)
-[![Dataset: EuRoC MAV](https://img.shields.io/badge/Dataset-EuRoC%20MAV%20ADIS16448-10B981.svg)](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets)
-[![Academic Evaluation](https://img.shields.io/badge/Evaluation-EL%20Phase--I%20(120%20Marks)-DC2626.svg)](#-academic-evaluation-rubric-mapping-120-marks)
-[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B.svg)](LICENSE)
+AERO-SWARM is a local web application for comparing a baseline UAV swarm with a tuned swarm. It includes a Three.js 3D display, a Python/FastAPI simulation service, REST endpoints, a live WebSocket stream, experiment records, optimization endpoints, and a paired Monte Carlo benchmark.
 
-An academic research platform and dual-arena 3D simulation environment demonstrating how systematic parameter optimization measurably enhances the **scalability** (from 5 to 50 drones) and **fault-tolerant robustness** of Unmanned Aerial Vehicle (UAV) swarms operating under empirical sensor noise, link degradation, and environmental hazards.
+This repository is a **software simulation and research prototype**. It does not connect to real aircraft, and its simplified physics, communications, sensing, and failure models are not flight-control or safety certification software. The equations and data notes below describe what the code currently computes; they should not be read as validation against real flight performance.
 
----
+## Contents
 
-## 📑 Table of Contents
-1. [Project Overview & Problem Statement](#-project-overview--problem-statement)
-2. [Complete Tools & Tech Stack](#-complete-tools--tech-stack)
-3. [Empirical Datasets Ingested](#-empirical-datasets-ingested)
-4. [System Architecture & Working Pipeline](#-system-architecture--working-pipeline)
-5. [The 5 Tunable System Parameters](#-the-5-tunable-system-parameters)
-6. [Mathematical Formulation of Indices](#-mathematical-formulation-of-indices)
-7. [Stress Testing & Fault Ingestion Engine](#-stress-testing--fault-ingestion-engine)
-8. [Experimental Results & 30-Run Statistical Benchmarks](#-experimental-results--30-run-statistical-benchmarks)
-9. [Ablation Study Matrix](#-ablation-study-matrix)
-10. [Academic Evaluation Rubric Mapping (120 Marks)](#-academic-evaluation-rubric-mapping-120-marks)
-11. [Repository Structure](#-repository-structure)
-12. [Quickstart & Local Installation](#-quickstart--local-installation)
-13. [References](#-references)
+- [Project layout](#project-layout)
+- [Requirements](#requirements)
+- [Run on macOS](#run-on-macos)
+- [Run on Windows](#run-on-windows)
+- [Use the application](#use-the-application)
+- [Backend and data flow](#backend-and-data-flow)
+- [Simulation model](#simulation-model)
+- [Configuration parameters](#configuration-parameters)
+- [Metrics and formulas](#metrics-and-formulas)
+- [Bundled datasets and stored results](#bundled-datasets-and-stored-results)
+- [Benchmark, optimization, and ablation](#benchmark-optimization-and-ablation)
+- [API reference](#api-reference)
+- [Troubleshooting](#troubleshooting)
+- [Known limitations](#known-limitations)
 
----
+## Project layout
 
-## 🔍 Project Overview & Problem Statement
+| Path | Purpose |
+| --- | --- |
+| `main.py` | **Primary application entry point.** Starts FastAPI, serves the web UI, REST APIs, live simulation WebSocket, and batch benchmark. |
+| `web/index.html` | Active single-page Three.js interface, controls, visualisation, and benchmark panel. The browser downloads Three.js from a CDN, so an internet connection is needed for that library. |
+| `uav_platform/` | Active simulation engine, API models/routes, metrics, experiment store, benchmark and optimization logic. |
+| `data/` | Bundled CSV/JSON telemetry, calibration metadata, historical experiment data and benchmark artifacts. |
+| `requirements.txt` | Python dependencies for the active FastAPI application. |
+| `tests/` | Python unit tests. |
+| `scripts/run_monte_carlo_campaign.py` | Separate command-line campaign runner that writes Monte Carlo CSV/summary files. |
+| `server.py`, `index.html`, `backend/` | Older, separate implementation. It is not the app shown by `main.py` and is not needed for the primary UI. |
+| `frontend/` | Placeholder package metadata; the active interface is served directly from `web/index.html` and does not require an npm build. |
 
-### The Problem
-Most modern multi-rotor UAV swarms perform reliably in idealized simulation demonstrations with small team sizes ($N \le 5$), uninterrupted satellite GPS locks, and unconstrained communication links. However, transitioning to real-world operations (e.g., search and rescue, disaster area mapping, agricultural monitoring, infrastructure inspection) frequently causes severe performance collapse:
-* **Scalability Bottlenecks:** Centralized or all-to-all broadcast communication scales quadratically at $\mathcal{O}(N^2)$, causing channel saturation, high packet latency, and inter-agent spatial collisions as fleet density grows.
-* **Robustness Vulnerabilities:** Quadrotors experience high-frequency accelerometer drift, gyroscope bias wander, total GPS dropouts in urban canyons, network packet drops, and sudden mid-air motor failures.
+Run `main.py` for the dual-arena app. Do not start `server.py` at the same time unless you specifically intend to inspect the older implementation.
 
-### The Proposed Solution
-Rather than relying on costly proprietary hardware redesigns, this project treats scalability and robustness as **empirically tunable system properties**. We define and optimize **5 critical system parameters** ($\theta_1 \dots \theta_5$), ground their noise distributions in flight data from the **EuRoC MAV Dataset**, and evaluate them inside an interactive, synchronized **Dual-Arena 3D Simulation Platform**:
-* **Arena A (Baseline Swarm):** Operates on default/un-tuned industry parameters.
-* **Arena B (Tuned Swarm):** Operates on our optimized autonomous parameters.
+## Requirements
 
-### Headline Results
-* ⚡ **$+41.8\%$ Average Improvement in Scalability Index ($S_{\text{idx}}$)** across $N \in [5, 50]$
-* 🛡️ **$+64.2\%$ Average Improvement in Robustness Index ($R_{\text{idx}}$)** under active sensor noise and GPS loss
-* 🔄 **Zero Unrecovered Area Coverage Loss** via autonomous dynamic lane failover reallocation.
+- Python 3.10 or newer (3.11 is a good choice).
+- macOS or Windows 10/11.
+- A modern browser with WebGL enabled (Chrome, Edge, Firefox, or Safari).
+- Internet access on first use if the browser needs to fetch the Three.js CDN script.
+- About 1 GB of available memory is generally sufficient for the normal UI; benchmark workload and large swarms increase CPU and memory use.
 
----
+The frontend is static HTML/JavaScript. Node.js/npm are not required to run the active application.
 
-## 🛠️ Complete Tools & Tech Stack
+## Run on macOS
 
-| Category | Tool / Library | Version | Role in Project |
-| :--- | :--- | :--- | :--- |
-| **3D Graphics Engine** | **Three.js** | r128 | WebGL hardware-accelerated 3D rendering of dual arenas, multirotor geometry, lighting, shadows, and obstacle towers. |
-| **Camera & Controls** | **OrbitControls.js** | r128 | Smooth 3D viewport control (orbit, pan, zoom) with pitch clamping. |
-| **Frontend UI / HUD** | **HTML5 / CSS3 / ES6+** | Native | Glassmorphic aerospace Heads-Up Display (HUD), real-time telemetry gauges, and interactive stress sliders. |
-| **Backend & Physics API** | **Python Standard Library** | 3.9+ | High-throughput HTTP & REST server (`http.server`, `socketserver`, `threading`, `json`, `math`). Zero external dependencies required. |
-| **Sensor Fusion Model** | **Extended Kalman Filter (EKF)** | Algorithmic | Dynamic complementary filter weighting for accelerometer-gyroscope dead-reckoning during GPS denial. |
-| **Swarm Coordination** | **Topological $k$-Mesh** | Algorithmic | Decentralized $k$-nearest neighbor coordination topology ($k=4$) reducing communication scaling to $\mathcal{O}(N)$. |
-| **Task Reallocation** | **Autonomous Watchdog Failover** | Algorithmic | Heartbeat loss detection ($\tau = 1.5\text{ s}$) that dynamically redistributes unvisited waypoints among surviving agents. |
-| **Empirical Telemetry** | **EuRoC MAV Dataset** | ADIS16448 | Sensor noise covariance matrices, bias drift walk, and urban canyon GPS outage profiles. |
-| **Version Control** | **Git & GitHub** | 2.40+ | Version control, documentation, and source code management. |
+Open Terminal and run these commands from the project directory:
 
----
-
-## 💽 Empirical Datasets Ingested
-
-Rather than evaluating against arbitrary random noise, the simulation parameters are calibrated against real-world aerial flight telemetry:
-
-### 1. EuRoC Micro Aerial Vehicle Dataset (ETH Zurich / ASL)
-* **Sensor Payload:** Analog Devices **ADIS16448 IMU** logged during real multirotor flights.
-* **Accelerometer Continuous-Time Noise Density:** $\sigma_{w,a} = 0.002\text{ m}/(\text{s}\sqrt{\text{s}})$
-* **Accelerometer Random Walk Bias Drift:** $\sigma_{b,a} = 0.0003\text{ m}/(\text{s}^2\sqrt{\text{s}})$
-* **Gyroscope Continuous-Time Noise Density:** $\sigma_{w,g} = 0.0004\text{ rad}/(\text{s}\sqrt{\text{s}})$
-* **Gyroscope Random Walk Bias Drift:** $\sigma_{b,g} = 0.00004\text{ rad}/(\text{s}\sqrt{\text{s}})$
-
-### 2. Urban Canyon Multipath GPS Outage Distribution
-* **Satellite Dropout Frequency:** Simulated satellite visibility loss ($p = 0.35$) occurring in proximity to vertical urban structures.
-* **Dilution of Precision (DOP) Surge:** Positional variance surges from $\pm 0.3\text{ m}$ (nominal) to $\pm 6.5\text{ m}$ (degraded).
-
-### 3. Dryden Wind Turbulence Model (MIL-F-8785C)
-* **Gust Standard Deviation:** $\sigma_u = \sigma_v = 1.2\text{ m/s}$ horizontal gust vectors stressing attitude stability.
-
----
-
-## 🏗️ System Architecture & Working Pipeline
-
-```
-                                [ PARAMETER DEFINITIONS ]
-                             θ = { d_safe, Kf, f_comm, k_neigh, τ_fail }
-                                           │
-                ┌──────────────────────────┴──────────────────────────┐
-                ▼                                                     ▼
-    ┌───────────────────────────────┐     ┌───────────────────────────────────┐
-    │     ARENA A: BASELINE SWARM   │     │      ARENA B: TUNED SWARM         │
-    │  • Rigid margin: 0.6 m        │     │  • Velocity-scaled margin: 2.8 m  │
-    │  • Raw noise gain: Kf = 1.0   │     │  • EKF filter gain: Kf = 0.22     │
-    │  • Global broadcast: 20 Hz    │     │  • k-Nearest mesh: 5 Hz           │
-    │  • Failover: DISABLED         │     │  • Failover: AUTONOMOUS REALLOC   │
-    └───────────────┬───────────────┘     └─────────────────┬─────────────────┘
-                    │                                       │
-                    └───────────────────┬───────────────────┘
-                                        ▼
-                        [ DYNAMIC STRESS INJECTION ENGINE ]
-                • Swarm Size Sweep: N = 5 → 10 → 25 → 50
-                • EuRoC MAV IMU Noise Density (0x to 3x)
-                • GPS Multipath Denial / Urban Dropout Toggle
-                • Mesh Link Packet Loss: 0% to 60%
-                • Mid-Air Motor/Drone Failure (Drone #3 Kill Switch)
-                                        │
-                                        ▼
-                     [ 30-RUN MONTE CARLO BENCHMARK ENGINE ]
-                • Area Coverage %   • Active Collisions     • Network Latency
-                • Scalability Index • Robustness Index      • Ablation Matrix
-```
-
----
-
-## ⚙️ The 5 Tunable System Parameters
-
-| Parameter | Symbol | Baseline (Default) | Tuned (Proposed) | Technical Rationale |
-| :--- | :---: | :---: | :---: | :--- |
-| **1. Safety Distance Buffer** | $d_{\text{safe}}$ | $0.6\text{ m}$ (Rigid) | $2.8\text{ m}$ (Adaptive velocity) | Scales linearly with velocity: $d_{\text{safe}}(v) = d_0 + \tau_{\text{react}} \cdot \|\mathbf{v}_i\|$, preventing crowding collisions. |
-| **2. Sensor Fusion Gain** | $K_f$ | $1.0$ (Raw, unfiltered) | $0.22$ (Extended Kalman Filter) | Fuses accelerometer integration with complementary weighting to prevent drift during GPS loss. |
-| **3. Communication Rate** | $f_{\text{comm}}$ | $20\text{ Hz}$ (High broadcast) | $5\text{ Hz}$ (Throttled rate) | Cuts wireless link overhead by $75\%$; prevents RF bandwidth saturation at large swarm sizes. |
-| **4. Network Topology** | $\mathcal{G}$ | Global Broadcast | $k$-Nearest ($k=4$) | Reduces message scaling complexity from $\mathcal{O}(N^2)$ to $\mathcal{O}(N)$, maintaining $<20\text{ ms}$ latency. |
-| **5. Dynamic Failover** | $\tau_{\text{fail}}$ | Disabled (`OFF`) | Watchdog Trigger (`ON`) | When a UAV crashes or loses power, neighbors reallocate its waypoint partition within $1.5\text{ s}$. |
-
----
-
-## 📐 Mathematical Formulation of Indices
-
-Performance is quantified through two composite metrics normalized to $[0, 100]$:
-
-### 1. Scalability Index ($S_{\text{idx}}$)
-Measures throughput retention as the swarm scales from $N=5$ to $N=50$:
-$$S_{\text{idx}} = 0.40 \cdot \left(\frac{\text{Coverage}(N=50)}{\text{Coverage}(N=5)}\right) + 0.30 \cdot \left(\frac{T_{\text{ideal}}}{T_{\text{actual}}(N=50)}\right) + 0.30 \cdot \left(1 - \frac{\text{Collisions}(N=50)}{N_{\text{max}}}\right)$$
-
-### 2. Robustness Index ($R_{\text{idx}}$)
-Measures resilience against environmental and hardware faults:
-$$R_{\text{idx}} = 0.35 \cdot C_{\text{fault}} + 0.30 \cdot \left(1 - \frac{\text{Collisions}}{N}\right) + 0.20 \cdot \left(\frac{N_{\text{surviving}}}{N}\right) + 0.15 \cdot \left(1 - \frac{\text{Drift}_{\text{GPS-loss}}}{\text{Drift}_{\text{max}}}\right)$$
-
-### 3. Percentage Improvement
-$$\Delta_{\text{Scalability}} = \left(\frac{S_{\text{idx}}^{\text{Tuned}} - S_{\text{idx}}^{\text{Baseline}}}{S_{\text{idx}}^{\text{Baseline}}}\right) \times 100\% \qquad \Delta_{\text{Robustness}} = \left(\frac{R_{\text{idx}}^{\text{Tuned}} - R_{\text{idx}}^{\text{Baseline}}}{R_{\text{idx}}^{\text{Baseline}}}\right) \times 100\%$$
-
----
-
-## 🧪 Stress Testing & Fault Ingestion Engine
-
-The interactive HUD provides dynamic sliders to stress both swarms simultaneously in real time:
-
-1. **Swarm Size ($N$) Slider (5 to 50 Drones):** Demonstrates scalability. As $N$ increases, observe how the baseline network chokes and drones collide, while the tuned swarm maintains coordinated formation.
-2. **EuRoC IMU Noise Density Slider ($0\times \to 3\times$):** Modulates high-frequency accelerometer and gyro noise based on the ADIS16448 empirical model.
-3. **Link Packet Loss Slider ($0\% \to 60\%$):** Simulates RF interference and dropped telemetry packets.
-4. **GPS Dropout Toggle:** Simulates total satellite signal occlusion in urban canyons. Baseline drones drift and collide with obstacle towers; tuned drones maintain trajectory via Kalman dead-reckoning.
-5. **Mid-Air Drone Failure (Kill Drone #3 Switch):** Injects an abrupt mid-flight actuator failure. In the baseline swarm, Drone #3's sector remains blank and abandoned; in the tuned swarm, neighboring agents dynamically absorb the waypoints and complete $100\%$ area coverage.
-
----
-
-## 📊 Experimental Results & 30-Run Statistical Benchmarks
-
-Data collected across 30 seeded Monte Carlo runs ($N \in \{5, 10, 25, 50\}$) under active EuRoC sensor noise:
-
-| Fleet Size ($N$) | Baseline Coverage | Tuned Coverage | Baseline Collisions | Tuned Collisions | Scalability Gain | Robustness Gain |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **$N = 5$** | $89.8\% \pm 4.8$ | **$98.1\% \pm 1.5$** | $2.0 \pm 0.8$ | **$0.2 \pm 0.2$** | $+12.2\%$ | $+38.4\%$ |
-| **$N = 10$** | $84.5\% \pm 5.4$ | **$97.2\% \pm 1.7$** | $4.0 \pm 1.5$ | **$0.4 \pm 0.2$** | $+24.8\%$ | $+51.6\%$ |
-| **$N = 25$** | $68.8\% \pm 7.2$ | **$94.5\% \pm 2.1$** | $10.0 \pm 3.7$ | **$1.0 \pm 0.2$** | $+42.6\%$ | $+74.1\%$ |
-| **$N = 50$** | $42.5\% \pm 10.2$ | **$90.0\% \pm 2.9$** | $20.0 \pm 7.5$ | **$2.0 \pm 0.2$** | **$+58.4\%$** | **$+92.7\%$** |
-
----
-
-## 🔬 Ablation Study Matrix
-
-To verify that improvements result directly from parameter tuning rather than random variance, an ablation study tests the isolated impact of reverting each parameter individually:
-
-| Configuration Variant | Scalability Index ($S_{\text{idx}}$) | Robustness Index ($R_{\text{idx}}$) | Empirical Impact |
-| :--- | :---: | :---: | :--- |
-| **Fully Tuned Swarm (Optimal)** | **$89.4$** | **$91.2$** | **Optimal Reference Benchmark** |
-| Revert Safety Buffer ($2.8\text{m} \to 0.6\text{m}$) | $81.2$ | $58.4$ | $-32.8\%$ Robustness (Surge in obstacle collisions) |
-| Revert Sensor Fusion ($0.22 \to 1.0$) | $84.1$ | $62.1$ | $-29.1\%$ Robustness (Severe positional drift under GPS loss) |
-| Revert Network Topology ($k\text{-mesh} \to \text{Broadcast}$) | $48.6$ | $79.5$ | $-40.8\%$ Scalability (Channel bandwidth saturation at $N=50$) |
-| Revert Failover Reallocation (`ON` $\to$ `OFF`) | $82.0$ | $66.8$ | $-24.4\%$ Robustness (Uncovered sector gaps upon drone failure) |
-| **Default Baseline Swarm (All Defaults)** | **$49.2$** | **$42.6$** | **Net Gain: $+40.2\%$ Scalability, $+48.6\%$ Robustness** |
-
----
-
-## 🎓 Academic Evaluation Rubric Mapping (120 Marks)
-
-| Evaluation Rubric Component | Marks Allocated | Addressed In This Repository |
-| :--- | :---: | :--- |
-| **1. Problem Statement & Literature Gap** | **15 Marks** | Formulated in `README.md` Section 1; cites seminal works (Zhou 2022, Vásárhelyi 2018, Soria 2021). |
-| **2. Mathematical Formulation & Architecture** | **20 Marks** | Formal definitions of $\theta_1 \dots \theta_5$, equations for $S_{\text{idx}}$ and $R_{\text{idx}}$, and state-space models. |
-| **3. Simulator Implementation & Dataset Grounding** | **30 Marks** | Dual-arena Three.js WebGL simulator with live HUD; empirical noise ingestion from EuRoC MAV ADIS16448. |
-| **4. Stress Testing & Parameter Optimization** | **25 Marks** | Real-time stress knobs (Swarm size $5 \to 50$, GPS loss, packet drops, mid-air failure injection). |
-| **5. Statistical Analysis & Ablation Study** | **20 Marks** | 30-run Monte Carlo matrix (Mean $\pm$ Std Dev) and one-parameter-at-a-time ablation matrix. |
-| **6. Real-World Applicability, SDG 9 & Viva Defense** | **10 Marks** | Sim-to-real transfer discussion, DGCA regulation compliance, SDG 9/11 alignment, and interactive live demo. |
-| **Total Score** | **120 Marks** | **Comprehensive, defensible, end-to-end engineering rigor.** |
-
----
-
-## 📁 Repository Structure
-
-```
-uav-swarm-scalability-robustness/
-├── README.md              # Complete project documentation, architecture, and results
-├── LICENSE                # MIT Open-Source License
-├── .gitignore             # Standard Python/IDE ignore rules
-├── server.py              # Integrated Python HTTP & REST API server + EuRoC noise model
-└── index.html             # Dual-Arena 3D Three.js simulator + Glassmorphic aerospace HUD
-```
-
----
-
-## 🚀 Quickstart & Local Installation
-
-### 1. Clone the Repository
 ```bash
-git clone https://github.com/rudracy/UAV.git
-cd UAV
+cd /Users/lakshayvijay/Downloads/UAV-main
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+PORT=8001 python main.py
 ```
 
-### 2. Start the Simulation Server
-No external package installation needed (uses Python standard library):
+Use `PORT=8001` if port 8000 is already in use. You can choose another unused port, for example `PORT=8002 python main.py`. To use the default port, run `python main.py` instead. Keep the terminal open while using the site; press **Ctrl+C** in that terminal to stop the server.
+
+Open <http://localhost:8001/dual-arena> in the browser. `http://127.0.0.1:8001/dual-arena` also works. Do not enter `0.0.0.0` in the browser: that is the server bind address, not the usual local browser address.
+
+To restart later, return to the folder and activate the existing environment:
+
 ```bash
-python server.py
+cd /Users/lakshayvijay/Downloads/UAV-main
+source .venv/bin/activate
+PORT=8001 python main.py
 ```
 
-### 3. Open in Browser
-Navigate to:
-👉 **[http://localhost:8000](http://localhost:8000)**
+If `python3` is unavailable, install Python 3 from python.org or through your preferred package manager, then reopen Terminal.
 
----
+## Run on Windows
 
-## 📚 References
+Open **PowerShell** in the project folder. If the repository is in Downloads:
 
-1. **Zhou, X., et al. (2022).** *Swarm of micro flying robots in the wild.* Science Robotics, 7(66), eabm5954.
-2. **Vásárhelyi, G., et al. (2018).** *Optimized flocking of autonomous drones in confined environments.* Science Robotics, 3(20), eaat3536.
-3. **Soria, E., Schiano, F., & Floreano, D. (2021).** *Predictive control of aerial swarms in cluttered environments.* Nature Machine Intelligence, 3(6), 545–554.
-4. **Choi, H.-L., Brunet, L., & How, J. P. (2009).** *Consensus-based decentralized auctions for robust task allocation.* IEEE Transactions on Robotics, 25(4), 912–926.
-5. **Berkenkamp, F., Schoellig, A. P., & Krause, A. (2016).** *Safe controller optimization for quadrotors with Gaussian processes.* In IEEE ICRA, 491–496.
-6. **Burri, M., et al. (2016).** *The EuRoC micro aerial vehicle datasets.* The International Journal of Robotics Research, 35(10), 1157–1163.
-7. **Brambilla, M., Ferrante, E., Birattari, M., & Dorigo, M. (2013).** *Swarm robotics: a review from the swarm engineering perspective.* Swarm Intelligence, 7(1), 1–41.
+```powershell
+cd "$HOME\Downloads\UAV-main"
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+$env:PORT = "8001"
+python main.py
+```
+
+Open <http://localhost:8001/dual-arena>. Keep PowerShell running while using the app and press **Ctrl+C** to stop the server. For the default port, omit `$env:PORT = "8001"` and use `python main.py`.
+
+If PowerShell cannot find Python, install Python 3.10+ and enable the Python launcher (`py`) during installation. If activation is unavailable or restricted on your machine, you can run the environment's interpreter directly without changing PowerShell policy:
+
+```powershell
+cd "$HOME\Downloads\UAV-main"
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:PORT = "8001"
+.\.venv\Scripts\python.exe main.py
+```
+
+### Install dependencies without a virtual environment
+
+Virtual environments are recommended so project packages do not affect other Python projects. If you intentionally want to install into your current Python environment, use:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+On Windows, use `py -3 -m pip install -r requirements.txt`.
+
+## Use the application
+
+1. Start the backend using the platform-specific instructions above.
+2. Visit `/dual-arena` on the same host and port printed by Uvicorn.
+3. Choose the swarm size and duration/window in the top controls.
+4. Select **Execute Dual** to run the baseline and tuned configurations side by side. The two runs share the requested seed, swarm size, duration, and stress settings; only their configuration presets differ.
+5. Use **Pause** and **Resume** to suspend/continue a live mission. **Stop / Reset** stops it and returns the display to its initial state.
+6. Use the bottom controls to change swarm size, IMU noise multiplier, and packet-loss stress. GPS dropout toggles GPS stress. The kill-drone control injects a failure for UAV #3 as a failover scenario.
+7. The speed slider changes playback/simulation pacing. Camera choices change the Three.js view, not the backend simulation.
+8. Select **30-run matrix** for the paired benchmark. The result panel displays progress and then summary statistics. The UI requests 30 trials; this is a CPU-intensive calculation and can take several minutes. Keep the browser tab and backend process open until it completes.
+
+The mission duration is a simulated-time window. The live UI can continue cycling the mission until stopped; a completed one-shot REST simulation instead ends at its requested duration. Stress and swarm-size behavior can differ from a prior run because runs use seeds and noise, and the visual appearance depends on the selected swarm size, camera, stress, and elapsed time.
+
+## Backend and data flow
+
+The active request path is:
+
+```text
+Browser (web/index.html / Three.js)
+        | REST: setup, history, analytics, benchmark
+        | WebSocket: start/pause/resume/stop/settings + streamed frames
+        v
+FastAPI application (main.py)
+        v
+SimulationService / SimulationRunner (uav_platform/)
+        |-- world, UAV dynamics, sensors, coverage, task allocation
+        |-- connectivity graph and mission metrics
+        v
+Experiment database/store -> API results and downloadable CSV/JSON
+```
+
+`main.py` mounts REST routers, serves `web/index.html` at `/` and `/dual-arena`, exposes `/api/health`, and accepts the live connection at `/ws/simulation`. The browser derives the WebSocket host and `ws`/`wss` scheme from the page URL. For local use, serve the page from this same backend origin; opening the HTML file directly with `file://` will not connect correctly.
+
+The live path runs simulation work off the asynchronous request loop and streams frame and progress messages over the WebSocket. The message actions include `start`, `pause`, `resume`, `stop`, and `update`. `update` changes supported stress inputs during a run. Swarm-size changes are for the next run. The one-shot REST route returns its generated frames in the response, so the WebSocket route is the preferred interactive path.
+
+The experiment store is implemented in `uav_platform/api/database.py`; inspect that file for the exact storage location and persistence behavior of the current checkout. The data CSVs in `data/` are distinct from this live experiment store. The browser does not directly load the telemetry CSV to draw the active simulation.
+
+`server.py` is an older standard-library HTTP app and uses a different `backend/` simulation/data-loading path. Its endpoints and data schema are not interchangeable with the active FastAPI service.
+
+## Simulation model
+
+The primary engine is implemented in `uav_platform/sim/` and uses a fixed-step, software model:
+
+- **Arena:** 400 m by 400 m square, represented by a 5 m coverage grid (80 × 80 cells). A simulation tick is 0.1 s.
+- **Initial placement:** UAVs start on a 20 m radius circle around the ground control station at 10 m altitude. Points of interest (POIs) are distributed across the arena by the seeded initializer.
+- **Obstacles and terrain:** The runner generates 12 seeded cylindrical obstacles. Terrain elevation and wind are simplified models in `world.py`; wind contains a seeded mean and time-varying gust component.
+- **Flight motion:** UAVs steer toward a POI or continuous sweep target, limit desired speed to 15 m/s, limit acceleration to 3 m/s², and limit climb rate. Obstacle/vehicle avoidance is simulated by software rules, not a real autopilot.
+- **Coverage:** A camera field-of-view model projects a footprint onto the 5 m grid. A cell counts once when marked covered. The UI renders the backend coverage and a separate visual heat/footprint layer.
+- **Tasks/failures:** The task allocator assigns survey work to live UAVs and responds to failures. Failure and GPS/packet-loss stress are simulation inputs, not hardware events.
+- **Communications:** `ConnectivityGraph` constructs links within a nominal 150 m radio range, applies a simplified signal/packet-delivery model, and uses either broadcast-like or nearest-neighbour connectivity settings.
+- **Sensors:** IMU and GPS behavior is simplified and includes configurable noise/dropout. A low sensor-fusion gain currently changes the model's noise behavior; it is not a full navigation-grade Extended Kalman Filter.
+- **Energy:** The motion model estimates battery use from hover, forward movement, and climb power. It is an illustrative energy budget, not an aircraft battery/propulsion validation.
+
+Some details (for example radio propagation, obstacle visibility, sensor distributions, and camera footprint) are assumptions encoded by this project. Results are model outputs rather than a claim that a real swarm would achieve the displayed numbers.
+
+## Configuration parameters
+
+The presets in `uav_platform/api/simulation_service.py` are:
+
+| Parameter | Baseline | Tuned | Meaning in this model |
+| --- | ---: | ---: | --- |
+| `comm_rate_hz` | 20 Hz | 5 Hz | Configured communication/beacon update rate. |
+| `neighbour_count` | 8 | 4 | Maximum nearest-neighbour setting used by the connectivity model; high settings can use its broadcast-like path. |
+| `safety_margin_m` | 0.6 m | 2.8 m | Separation/avoidance threshold used by motion behavior. |
+| `sensor_fusion_gain` | 1.0 | 0.22 | Gain passed to the simplified sensor/dynamics noise behavior. The UI may describe the tuned preset as “EKF”; the active engine does not implement a complete EKF. |
+| `failsafe_threshold_pct` | 5% | 15% | Threshold supplied to the failsafe behavior. It is not equivalent to a certified battery return-to-home system. |
+
+Live stress controls are separate from those preset parameters:
+
+| Stress input | UI range/behavior | Effect |
+| --- | --- | --- |
+| IMU noise multiplier | 0× to 3× | Scales the sensor-noise stress setting for the active simulation. |
+| Extra link packet loss | 0% to 60% | Adds loss to the communications model. |
+| GPS dropout | Toggle | Enables/disables GPS dropout stress. |
+| Forced UAV failure | UAV #3 button | Adds UAV ID 3 to the forced failure/outage set for the current mission. |
+
+The API accepts a `seed` to seed environment, POI, sensor, and related random generators. This improves paired comparisons, but it does not promise bit-for-bit reproducibility across every code path or software version.
+
+## Metrics and formulas
+
+Metric calculations are in `uav_platform/api/metrics.py`. The inputs are outputs from the simulation runner. `clamp(x, a, b)` means `min(b, max(a, x))`.
+
+### Scalability index
+
+The score is a weighted average on a 0–100 scale:
+
+```text
+S_idx = 0.35 * C_scale + 0.35 * T_ret + 0.30 * S_safe
+```
+
+Components:
+
+```text
+expected_coverage(N) = max(1, min(35, 3.2 * sqrt(N)))
+C_scale = clamp(100 * coverage_pct / expected_coverage(N), 0, 100)
+T_ret   = clamp(100 * clamp(1 - latency_ms / 250, 0, 1)
+                     * clamp(packet_delivery_ratio, 0, 1), 0, 100)
+S_safe  = clamp(100 * (1 - collisions / max(1, 0.5 * N)), 0, 100)
+```
+
+`coverage_pct` is a percentage (0–100), `packet_delivery_ratio` is a fraction (0–1), latency is milliseconds, and collisions is the runner's collision count. The `expected_coverage` curve is a normalization chosen in code, not a value learned from the supplied CSV.
+
+### Robustness index
+
+```text
+R_idx = 0.35 * M_meas + 0.30 * U_surv + 0.20 * L_pdr + 0.15 * B_res
+M_meas = clamp(mission_completion_pct, 0, 100)
+U_surv = clamp(100 * (alive_uavs / N) * max(0, 1 - collisions / N), 0, 100)
+L_pdr  = clamp(100 * packet_delivery_ratio, 0, 100)
+B_res  = clamp(avg_battery_pct, 0, 100)
+```
+
+These weights sum to one, and each component is clamped to 0–100, so both indices are bounded from 0 to 100.
+
+### Improvement percentages
+
+For a higher-is-better metric, improvement is `(tuned - baseline) / abs(baseline) * 100`. For lower-is-better metrics (such as collisions or latency), improvement is `(baseline - tuned) / abs(baseline) * 100`. The helper has explicit handling for a zero baseline. A percentage improvement is relative change; it is not the same as a percentage-point difference.
+
+### Motion and communications examples
+
+In `uav_platform/sim/uav.py`, desired velocity is based on target displacement and capped; acceleration is derived from velocity error over `dt` and bounded. Drag uses a quadratic term of the form `F_drag = 0.5 * rho * Cd * A * v^2`. Battery energy is integrated from the configured hover/forward/climb power model over each step.
+
+In `uav_platform/sim/connectivity.py`, the model calculates distance/line-of-sight and uses an RSSI approximation and packet-delivery probability. The code's path-loss approximation is simplified; it does not simulate a standards-compliant RF channel, spectrum contention, modulation/coding, or a real radio. The model's neighbor selection reduces the retained topology, but graph candidate construction can still examine UAV pairs, so describing the implementation as guaranteed O(N) total computation would be inaccurate.
+
+## Bundled datasets and stored results
+
+| File | What is in the repository | How the primary app uses it |
+| --- | --- | --- |
+| `data/euroc_mav_telemetry.csv` | Bundled telemetry-like CSV with IMU, GPS, ground-truth position and flight-phase columns. The checked-in file contains 2,000 data rows at 0.05 s spacing (approximately 20 Hz for 100 s). | Not read by the active live simulation runner or its sensor initialization. It is a separate data artifact. |
+| `data/sensor_calibration.json` | Calibration/noise metadata whose text attributes values to EuRoC MAV / ADIS16448 and GPS/environment assumptions. | Not loaded by the active FastAPI simulation path. |
+| `data/monte_carlo_runs.csv` | Checked-in per-run records from a prior campaign (240 data rows in this checkout). | Not the source of the live 30-run matrix; the active matrix computes fresh trials. |
+| `data/benchmark_summary.json` | Checked-in summary artifact for prior benchmark results. | Some analytics fallback routes can read this artifact when no stored baseline/tuned experiments are available. It should be identified as a stored artifact, not a newly computed live result. |
+| `data/ablation_matrix.json` | Stored ablation-related results. | Separate from a newly requested ablation endpoint calculation. |
+| `data/experiments_db.json` | Repository data file related to experiment records. | The active experiment database implementation determines its own persistence location/behavior; do not assume this JSON file is automatically populated by the live app without checking `uav_platform/api/database.py`. |
+
+The names and metadata in the repository are project-provided provenance descriptions. The active simulation does not ingest the CSV as raw EuRoC flight data or calibrate its sensor model from those rows. Verify the original dataset source, processing history, and license from the official publisher before academic redistribution or attributing results to real EuRoC measurements.
+
+## Benchmark, optimization, and ablation
+
+### Interactive paired matrix
+
+The UI calls `POST /api/benchmark/batch?trials=30`. The backend evaluates sizes N=5, 10, 25, and 50. For each size it runs baseline and tuned simulations for each trial with the same nominal seed, then returns means and standard deviations for coverage, collisions, latency, PDR, scalability, and robustness, plus relative improvements. Default UI settings request 30 trials per size: 4 × 30 × 2 = **240 simulation executions**. The service reports progress through `GET /api/benchmark/status` while the request is running. The benchmark currently uses its code-defined duration and stress defaults; it does not use the current live UI mission state or read the historical CSV.
+
+The endpoint clamps `trials` to the range 1–30. A smaller value is useful for a quick check, for example:
+
+```text
+http://localhost:8001/docs
+```
+
+In Swagger UI, expand `POST /api/benchmark/batch`, try `trials=1`, then try 30 for the full campaign. The benchmark does not persist each returned trial to the historical CSV automatically. Statistical standard deviation is computed by NumPy with its default population convention (`ddof=0`).
+
+### Standalone CSV campaign
+
+`scripts/run_monte_carlo_campaign.py` is a separate command-line runner and writes campaign artifacts under `data/`. It is not the same code path as the browser matrix. Review the script before running it: it may use a process pool and several hundred tasks, consuming substantial CPU. Do not launch it while expecting the interactive backend to remain responsive on a small machine.
+
+### Optimization and ablation
+
+- **Grid search:** `/api/optimization/grid-search` forms a parameter grid and evaluates a representative subset of up to 16 configurations, ordered by a 50/50 average of scalability and robustness indices. It does not exhaustively run all combinations when the grid is larger.
+- **Bayesian-style search:** `/api/optimization/bayesian` starts with baseline and tuned settings, then uses a lightweight radial-basis weighted surrogate and an upper-confidence-style candidate rule. It is a project implementation, not a call to a full Gaussian-process library.
+- **Ablation:** `/api/optimization/ablation` evaluates the tuned configuration, reverts one parameter at a time to its baseline value, and evaluates the all-baseline configuration for comparison.
+
+These are model-based experiments. A high score means better according to the code's chosen metric and assumptions, not proven real-world flight safety or a universal optimum.
+
+## API reference
+
+The interactive API documentation is at `http://localhost:8001/docs` (replace 8001 with the port you chose). The OpenAPI schema is at `/openapi.json`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/` or `/dual-arena` | Serve the main UI. |
+| `GET` | `/api/health` | Check that the API process is responding. |
+| `WS` | `/ws/simulation` | Live simulation commands and frames. |
+| `POST` | `/api/simulation/run` | Run a finite simulation and return frames and final metrics. |
+| `GET` | `/api/simulation/configs/baseline` | Return baseline preset. |
+| `GET` | `/api/simulation/configs/tuned` | Return tuned preset. |
+| `GET` | `/api/simulation/{experiment_id}` | Fetch a stored simulation record. |
+| `GET` | `/api/experiments` | List experiment records. |
+| `GET` | `/api/experiments/stats` | Summarize stored experiments. |
+| `GET` | `/api/experiments/export/csv` or `/api/experiments/export/json` | Download stored records. |
+| `DELETE` | `/api/experiments/{experiment_id}` | Delete one experiment record. |
+| `POST` | `/api/analytics/compare` | Compare stored baseline/tuned runs or use the stored benchmark fallback. |
+| `GET` | `/api/analytics/scalability` | Read scalability analysis. |
+| `GET` | `/api/analytics/ablation` | Read ablation analysis. |
+| `POST` | `/api/optimization/grid-search` | Run the sampled grid search. |
+| `POST` | `/api/optimization/bayesian` | Run the surrogate search. |
+| `POST` | `/api/optimization/ablation` | Run a fresh one-at-a-time ablation. |
+| `POST` | `/api/benchmark/batch?trials=30` | Run a paired benchmark across four swarm sizes. |
+| `GET` | `/api/benchmark/status` | Read benchmark progress/error state. |
+
+For exact request JSON schemas, use `/docs`; they are defined by Pydantic models in `uav_platform/api/models.py`.
+
+## Troubleshooting
+
+### “Address already in use” on port 8000
+
+Another process is listening on 8000. Either stop the old process in its terminal with Ctrl+C, or start this app on another port:
+
+```bash
+PORT=8001 python main.py
+```
+
+PowerShell:
+
+```powershell
+$env:PORT = "8001"
+python main.py
+```
+
+Then browse to the matching `localhost` URL. Do not repeatedly start another server on the same occupied port.
+
+### Backend connected indicator is off or the page stays empty
+
+- Confirm the terminal says `Uvicorn running on ...:8001` and has no traceback.
+- Open the same port and `/dual-arena` from the URL printed by the server.
+- Check `http://localhost:8001/api/health` for a JSON healthy response.
+- Keep the backend terminal running. A page opened as a local file or through a different host/port will not share the WebSocket endpoint.
+- Ensure the browser allows WebGL and can reach the Three.js CDN.
+- If the page was already open before the server restarted, reload the page.
+
+### Sliders or stress buttons appear inactive
+
+Use the active `web/index.html` served by `main.py`, not the root legacy `index.html` served by `server.py`. Start a mission before using controls intended for live updates. Swarm size applies to the next run; stress controls are the ones designed to update an active run.
+
+### Benchmark looks stuck or shows a running message
+
+Thirty trials mean 240 sequential simulation executions across the four swarm sizes. It can take several minutes, especially at N=50. Check `/api/benchmark/status` and the server terminal. A successful response replaces the progress panel with the results; an error is surfaced in the panel and backend log. Use fewer trials for a smoke check, then run 30 when ready. Do not treat the progress message as completed results.
+
+### `ModuleNotFoundError` during startup
+
+Activate the `.venv` created for this project, then rerun `python -m pip install -r requirements.txt`. On Windows use the `.venv` interpreter shown above. Confirm `python --version` reports 3.10 or newer.
+
+## Known limitations
+
+- The simulator is a simplified, discrete-time research visualization. It does not model full 6-DOF rigid-body aerodynamics, actuator/motor dynamics, certified collision avoidance, or real radio standards.
+- Active sensor fusion is not a complete EKF, despite labels in some UI text and old comments.
+- Bundled EuRoC-named telemetry/calibration artifacts are not used by the primary live simulator; their exact provenance and license need external verification before publication or redistribution.
+- Seed handling supports controlled comparisons, but do not promise exact reproducibility across versions/platforms without verifying every source of randomness.
+- The preset comparison is not guaranteed to make the tuned swarm outperform baseline on every metric, seed, swarm size, or stress level.
+- Historical CSV/JSON results and fresh API results are different sources. Reports should state which source, parameters, stress settings, swarm sizes, trial count, and software revision produced them.
+- This project is not suitable for controlling real UAVs or making operational safety decisions.
+
+## Tests
+
+To run the repository's Python unit tests from an activated environment:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+The active app does not have a frontend npm build step. The tests cover Python behavior only; they do not replace browser/WebGL end-to-end verification.

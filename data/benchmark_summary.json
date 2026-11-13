@@ -1,0 +1,250 @@
+{
+  "metadata": {
+    "experiment": "30-Trial Monte Carlo Benchmark (240 Runs Total)",
+    "swarm_sizes": [
+      5,
+      10,
+      25,
+      50
+    ],
+    "trials_per_size": 30,
+    "total_runs": 240,
+    "duration_per_run_s": 15.0,
+    "stress_conditions": {
+      "sensor_noise": 0.5,
+      "gps_dropout_prob": 0.1,
+      "motor_failure_prob": 0.005,
+      "packet_loss_extra": 0.05,
+      "outage_uav_ids": []
+    },
+    "baseline_params": {
+      "comm_rate_hz": 20.0,
+      "neighbour_count": 8,
+      "safety_margin_m": 0.6,
+      "sensor_fusion_gain": 1.0,
+      "failsafe_threshold_pct": 5.0
+    },
+    "tuned_params": {
+      "comm_rate_hz": 5.0,
+      "neighbour_count": 4,
+      "safety_margin_m": 2.8,
+      "sensor_fusion_gain": 0.22,
+      "failsafe_threshold_pct": 15.0
+    },
+    "overall_improvements": {
+      "scalability_gain_pct": 4.44,
+      "robustness_gain_pct": 9.46,
+      "collision_reduction_pct": 95.04
+    }
+  },
+  "by_swarm_size": {
+    "5": {
+      "swarm_size": 5,
+      "trials": 30,
+      "baseline": {
+        "coverage_mean": 5.09,
+        "coverage_std": 0.92,
+        "collisions_mean": 0.67,
+        "collisions_std": 2.02,
+        "latency_mean": 7.84,
+        "latency_std": 1.23,
+        "queuing_mean": 5.0,
+        "queuing_std": 0.0,
+        "freshness_mean": 50.0,
+        "freshness_std": 0.0,
+        "pdr_mean": 0.49,
+        "pdr_std": 0.03,
+        "scalability_mean": 66.86,
+        "scalability_std": 10.23,
+        "robustness_mean": 48.86,
+        "robustness_std": 8.72,
+        "mission_completion_mean": 4.45,
+        "mission_completion_std": 7.37
+      },
+      "tuned": {
+        "coverage_mean": 4.76,
+        "coverage_std": 1.12,
+        "collisions_mean": 0.0,
+        "collisions_std": 0.0,
+        "latency_mean": 25.19,
+        "latency_std": 3.3,
+        "queuing_mean": 20.0,
+        "queuing_std": 0.0,
+        "freshness_mean": 200.0,
+        "freshness_std": 0.0,
+        "pdr_mean": 0.49,
+        "pdr_std": 0.04,
+        "scalability_mean": 68.85,
+        "scalability_std": 4.47,
+        "robustness_mean": 52.24,
+        "robustness_std": 6.99,
+        "mission_completion_mean": 6.67,
+        "mission_completion_std": 9.23
+      },
+      "improvements": {
+        "coverage_gain_pct": -6.48,
+        "collision_reduction_pct": 100.0,
+        "latency_reduction_pct": -221.3,
+        "pdr_gain_pct": 0.0,
+        "scalability_gain_pct": 2.98,
+        "robustness_gain_pct": 6.92
+      }
+    },
+    "10": {
+      "swarm_size": 10,
+      "trials": 30,
+      "baseline": {
+        "coverage_mean": 8.78,
+        "coverage_std": 1.28,
+        "collisions_mean": 0.57,
+        "collisions_std": 1.23,
+        "latency_mean": 7.1,
+        "latency_std": 0.25,
+        "queuing_mean": 5.0,
+        "queuing_std": 0.0,
+        "freshness_mean": 50.0,
+        "freshness_std": 0.0,
+        "pdr_mean": 0.51,
+        "pdr_std": 0.01,
+        "scalability_mean": 73.93,
+        "scalability_std": 7.7,
+        "robustness_mean": 50.54,
+        "robustness_std": 5.29,
+        "mission_completion_mean": 2.22,
+        "mission_completion_std": 5.67
+      },
+      "tuned": {
+        "coverage_mean": 8.54,
+        "coverage_std": 1.24,
+        "collisions_mean": 0.03,
+        "collisions_std": 0.18,
+        "latency_mean": 28.66,
+        "latency_std": 3.77,
+        "queuing_mean": 20.0,
+        "queuing_std": 0.0,
+        "freshness_mean": 200.0,
+        "freshness_std": 0.0,
+        "pdr_mean": 0.55,
+        "pdr_std": 0.02,
+        "scalability_mean": 76.14,
+        "scalability_std": 3.79,
+        "robustness_mean": 53.53,
+        "robustness_std": 4.2,
+        "mission_completion_mean": 3.89,
+        "mission_completion_std": 7.05
+      },
+      "improvements": {
+        "coverage_gain_pct": -2.73,
+        "collision_reduction_pct": 94.74,
+        "latency_reduction_pct": -303.66,
+        "pdr_gain_pct": 7.84,
+        "scalability_gain_pct": 2.99,
+        "robustness_gain_pct": 5.92
+      }
+    },
+    "25": {
+      "swarm_size": 25,
+      "trials": 30,
+      "baseline": {
+        "coverage_mean": 13.69,
+        "coverage_std": 1.11,
+        "collisions_mean": 2.47,
+        "collisions_std": 3.6,
+        "latency_mean": 7.02,
+        "latency_std": 0.08,
+        "queuing_mean": 5.0,
+        "queuing_std": 0.0,
+        "freshness_mean": 50.0,
+        "freshness_std": 0.0,
+        "pdr_mean": 0.51,
+        "pdr_std": 0.01,
+        "scalability_mean": 71.71,
+        "scalability_std": 8.62,
+        "robustness_mean": 49.59,
+        "robustness_std": 5.08,
+        "mission_completion_mean": 1.39,
+        "mission_completion_std": 3.1
+      },
+      "tuned": {
+        "coverage_mean": 13.01,
+        "coverage_std": 0.97,
+        "collisions_mean": 0.17,
+        "collisions_std": 0.73,
+        "latency_mean": 49.79,
+        "latency_std": 4.7,
+        "queuing_mean": 20.0,
+        "queuing_std": 0.0,
+        "freshness_mean": 200.0,
+        "freshness_std": 0.0,
+        "pdr_mean": 0.63,
+        "pdr_std": 0.01,
+        "scalability_mean": 75.6,
+        "scalability_std": 3.14,
+        "robustness_mean": 54.75,
+        "robustness_std": 3.13,
+        "mission_completion_mean": 2.5,
+        "mission_completion_std": 4.38
+      },
+      "improvements": {
+        "coverage_gain_pct": -4.97,
+        "collision_reduction_pct": 93.12,
+        "latency_reduction_pct": -609.26,
+        "pdr_gain_pct": 23.53,
+        "scalability_gain_pct": 5.42,
+        "robustness_gain_pct": 10.41
+      }
+    },
+    "50": {
+      "swarm_size": 50,
+      "trials": 30,
+      "baseline": {
+        "coverage_mean": 17.39,
+        "coverage_std": 1.1,
+        "collisions_mean": 6.97,
+        "collisions_std": 8.37,
+        "latency_mean": 7.0,
+        "latency_std": 0.03,
+        "queuing_mean": 5.0,
+        "queuing_std": 0.0,
+        "freshness_mean": 50.0,
+        "freshness_std": 0.0,
+        "pdr_mean": 0.5,
+        "pdr_std": 0.01,
+        "scalability_mean": 66.58,
+        "scalability_std": 6.6,
+        "robustness_mean": 48.15,
+        "robustness_std": 5.11,
+        "mission_completion_mean": 2.4,
+        "mission_completion_std": 3.2
+      },
+      "tuned": {
+        "coverage_mean": 16.15,
+        "coverage_std": 0.93,
+        "collisions_mean": 0.33,
+        "collisions_std": 1.47,
+        "latency_mean": 77.17,
+        "latency_std": 8.94,
+        "queuing_mean": 20.0,
+        "queuing_std": 0.0,
+        "freshness_mean": 200.0,
+        "freshness_std": 0.0,
+        "pdr_mean": 0.67,
+        "pdr_std": 0.01,
+        "scalability_mean": 70.87,
+        "scalability_std": 2.56,
+        "robustness_mean": 55.27,
+        "robustness_std": 2.35,
+        "mission_completion_mean": 2.53,
+        "mission_completion_std": 3.01
+      },
+      "improvements": {
+        "coverage_gain_pct": -7.13,
+        "collision_reduction_pct": 95.27,
+        "latency_reduction_pct": -1002.43,
+        "pdr_gain_pct": 34.0,
+        "scalability_gain_pct": 6.44,
+        "robustness_gain_pct": 14.79
+      }
+    }
+  }
+}

@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AERO-SWARM — Dual-Arena UAV Swarm Research Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-void:#050811;--bg-dark:#080d1a;--bg-panel:#0f172a;--bg-card:#131d33;
+      --border-subtle:#1e293b;--border-panel:#273552;
+      --cyan:#38bdf8;--cyan2:#0ea5e9;--cyan-glow:rgba(56,189,248,.22);
+      --red:#ef4444;--red-glow:rgba(239,68,68,.22);
+      --emerald:#10b981;--amber:#f59e0b;--violet:#8b5cf6;
+      --text-w:#f8fafc;--text-m:#e2e8f0;--text-s:#94a3b8;--text-d:#64748b;
+      --font-ui:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;outline:none;}
+    html,body{width:100%;height:100%;overflow:hidden;font-family:var(--font-ui);
+      background:var(--bg-void);color:var(--text-m);-webkit-font-smoothing:antialiased;}
+
+    /* ── TOP COMMAND BAR ────────────────────────────────────────────── */
+    #cmd-bar{
+      position:fixed;top:0;left:0;right:0;height:56px;
+      background:linear-gradient(180deg,#0b1220 0%,#080d1a 100%);
+      border-bottom:1px solid var(--border-panel);
+      display:flex;align-items:center;gap:0;z-index:900;
+    }
+    .cb-brand{
+      display:flex;align-items:center;gap:10px;padding:0 18px;
+      border-right:1px solid var(--border-subtle);min-width:220px;
+    }
+    .cb-emblem{
+      width:36px;height:36px;background:linear-gradient(135deg,var(--cyan),var(--cyan2));
+      border-radius:8px;display:flex;align-items:center;justify-content:center;
+      font-size:18px;font-weight:800;color:#050811;letter-spacing:-1px;
+    }
+    .cb-title-wrap{display:flex;flex-direction:column;}
+    .cb-title{font-size:13px;font-weight:700;color:var(--text-w);letter-spacing:.4px;}
+    .cb-sub{font-size:10px;color:var(--text-d);font-family:var(--font-mono);}
+
+    /* arena stat blocks */
+    .arena-stats{
+      flex:1;display:flex;align-items:center;gap:8px;padding:0 14px;
+    }
+    .arena-stats.left{border-right:1px solid var(--border-subtle);}
+    .arena-label{
+      font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;
+      letter-spacing:.8px;white-space:nowrap;
+    }
+    .arena-label.baseline{background:rgba(239,68,68,.18);color:var(--red);}
+    .arena-label.tuned{background:rgba(56,189,248,.18);color:var(--cyan);}
+    .stat-chip{
+      display:flex;flex-direction:column;align-items:center;
+      padding:3px 10px;border-radius:6px;border:1px solid var(--border-subtle);
+      background:var(--bg-card);min-width:62px;
+    }
+    .stat-chip .sc-label{font-size:9px;color:var(--text-d);font-family:var(--font-mono);letter-spacing:.5px;}
+    .stat-chip .sc-val{font-size:13px;font-weight:600;font-family:var(--font-mono);}
+    .sc-val.red{color:var(--red);}
+    .sc-val.cyan{color:var(--cyan);}
+    .sc-val.amber{color:var(--amber);}
+    .sc-val.emerald{color:var(--emerald);}
+    .sc-val.muted{color:var(--text-s);}
+
+    /* shared controls */
+    .cb-controls{
+      display:flex;align-items:center;gap:8px;padding:0 16px;
+      border-left:1px solid var(--border-subtle);border-right:1px solid var(--border-subtle);
+    }
+    .ctrl-btn{
+      display:flex;align-items:center;gap:5px;
+      padding:6px 12px;border-radius:6px;border:1px solid var(--border-panel);
+      background:var(--bg-card);color:var(--text-m);font-size:12px;font-weight:600;
+      cursor:pointer;transition:background .18s,border-color .18s,color .18s,transform .18s;white-space:nowrap;
+      box-shadow:0 1px 2px rgba(0,0,0,.18);
+    }
+    .ctrl-btn:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(56,189,248,.08);transform:translateY(-1px);}
+    .ctrl-btn:focus-visible,select.ctrl-sel:focus-visible,.stress-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+    .ctrl-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+    .ctrl-btn.active{background:var(--cyan);color:#050811;border-color:var(--cyan);}
+    .ctrl-btn.danger:hover{border-color:var(--red);color:var(--red);background:rgba(239,68,68,.08);}
+    .ctrl-sep{width:1px;height:28px;background:var(--border-subtle);}
+    select.ctrl-sel{
+      padding:5px 8px;border-radius:6px;border:1px solid var(--border-panel);
+      background:var(--bg-card);color:var(--text-m);font-size:12px;font-family:var(--font-ui);cursor:pointer;
+    }
+    select.ctrl-sel:hover{border-color:var(--cyan);}
+    #cmd-bar{box-shadow:0 8px 24px rgba(0,0,0,.2);}
+    .stat-chip{box-shadow:inset 0 1px rgba(255,255,255,.025);}
+    #sb-connection.connected{color:var(--emerald)!important;}
+    #sb-connection.connected::before{content:'';display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:var(--emerald);box-shadow:0 0 10px rgba(16,185,129,.55);}
+    #sb-connection.disconnected{color:var(--amber)!important;}
+    label.ctrl-label{font-size:11px;color:var(--text-d);}
+    #performance-strip{
+      position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:850;
+      display:flex;align-items:center;gap:20px;padding:8px 18px;
+      border:1px solid rgba(16,185,129,.72);border-radius:999px;
+      background:rgba(10,18,34,.88);box-shadow:0 8px 30px rgba(0,0,0,.3),0 0 22px rgba(16,185,129,.08);
+      backdrop-filter:blur(14px);white-space:nowrap;
+    }
+    .perf-item{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;letter-spacing:.45px;color:var(--text-w);}
+    .perf-item strong{font:700 17px var(--font-mono);color:var(--emerald);min-width:74px;text-align:right;}
+    .perf-divider{width:1px;height:25px;background:var(--border-panel);}
+    #btn-matrix{position:fixed;top:64px;right:20px;z-index:850;min-width:210px;justify-content:center;color:#69e2b4;border-color:#087b60;}
+
+    /* ── DUAL ARENA CONTAINER ───────────────────────────────────────── */
+    #dual-arena{
+      position:fixed;top:116px;bottom:48px;left:0;right:0;
+      display:flex;flex-direction:row;
+    }
+    .arena-pane{
+      flex:1;position:relative;overflow:hidden;
+    }
+    .arena-pane canvas{
+      width:100%!important;height:100%!important;display:block;
+    }
+    #arena-divider{
+      width:3px;background:linear-gradient(180deg,transparent,var(--border-panel) 20%,var(--border-panel) 80%,transparent);
+      flex-shrink:0;position:relative;
+    }
+    #arena-divider::after{
+      content:'◀ ▶';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      font-size:10px;color:var(--text-d);letter-spacing:2px;writing-mode:vertical-rl;
+    }
+
+    /* arena overlay labels */
+    .arena-overlay{
+      position:absolute;top:10px;left:12px;right:12px;
+      display:flex;justify-content:space-between;align-items:flex-start;
+      pointer-events:none;z-index:50;
+    }
+    .arena-name-badge{
+      font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;
+      letter-spacing:.6px;backdrop-filter:blur(4px);
+    }
+    .arena-name-badge.baseline{
+      background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.35);
+    }
+    .arena-name-badge.tuned{
+      background:rgba(56,189,248,.2);color:var(--cyan);border:1px solid rgba(56,189,248,.35);
+    }
+    .arena-live-cov{
+      font-size:10px;font-family:var(--font-mono);
+      padding:3px 8px;border-radius:5px;backdrop-filter:blur(4px);
+      background:rgba(5,8,17,.6);border:1px solid var(--border-subtle);color:var(--text-s);
+    }
+    .live-metrics{position:absolute;top:54px;left:12px;width:min(220px,34%);z-index:45;pointer-events:auto;}
+    .live-metrics.tuned{left:auto;right:12px;}
+    .live-metrics .metric-title{font-size:10px;font-weight:800;letter-spacing:.35px;margin-bottom:8px;}
+    .live-metrics.baseline .metric-title,.live-metrics.baseline .metric-value{color:#ff6b70;}
+    .live-metrics.tuned .metric-title,.live-metrics.tuned .metric-value{color:#24d5a0;}
+    .live-metrics .metric-row{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:6px 0;font-size:11px;color:var(--text-s);}
+    .live-metrics .metric-value{font:700 11px var(--font-mono);text-align:right;}
+    .metric-meter{height:5px;margin:2px 0 8px;border-radius:99px;background:#1e293b;overflow:hidden;}
+    .metric-meter span{display:block;height:100%;width:0;transition:width .25s ease;}
+    .live-metrics.baseline .metric-meter span{background:#ef4444;}
+    .live-metrics.tuned .metric-meter span{background:#10b981;}
+    .live-knobs{margin-top:9px;color:var(--text-s);font-size:10px;line-height:1.55;}
+    .live-knobs b{color:var(--text-w);}
+
+    /* progress ring inside arena */
+    .arena-progress{
+      position:absolute;bottom:12px;right:12px;pointer-events:none;z-index:50;
+    }
+    .prog-ring{display:flex;align-items:center;gap:6px;
+      background:rgba(5,8,17,.7);padding:5px 10px;border-radius:8px;
+      border:1px solid var(--border-panel);backdrop-filter:blur(4px);}
+    .prog-dot{width:7px;height:7px;border-radius:50%;animation:pulse 1.4s infinite;}
+    .prog-dot.red{background:var(--red);box-shadow:0 0 6px var(--red);}
+    .prog-dot.cyan{background:var(--cyan);box-shadow:0 0 6px var(--cyan);}
+    .prog-dot.idle{background:var(--text-d);animation:none;}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+    .prog-txt{font-size:10px;font-family:var(--font-mono);color:var(--text-s);}
+
+    /* parameter config cards */
+    .param-card{
+      position:absolute;bottom:110px;left:12px;pointer-events:none;z-index:50;
+      background:rgba(5,8,17,.8);backdrop-filter:blur(6px);
+      border:1px solid var(--border-panel);border-radius:8px;padding:8px 12px;max-width:200px;
+    }
+    .param-card-title{font-size:9px;font-weight:700;letter-spacing:.8px;margin-bottom:5px;}
+    .param-card-title.baseline{color:var(--red);}
+    .param-card-title.tuned{color:var(--cyan);}
+    .param-row{display:flex;justify-content:space-between;gap:8px;font-size:10px;margin-bottom:2px;}
+    .param-key{color:var(--text-d);font-family:var(--font-mono);}
+    .param-val{color:var(--text-m);font-family:var(--font-mono);font-weight:600;}
+
+    /* ── BOTTOM STATUS BAR ──────────────────────────────────────────── */
+    #status-bar{
+      position:fixed;bottom:0;left:0;right:0;height:48px;
+      background:linear-gradient(0deg,#080d1a 0%,#0b1220 100%);
+      border-top:1px solid var(--border-panel);
+      display:flex;align-items:center;gap:0;z-index:900;padding:0 16px;gap:14px;
+    }
+    .sb-item{display:flex;align-items:center;gap:6px;font-size:11px;}
+    .sb-label{color:var(--text-d);font-family:var(--font-mono);}
+    .sb-val{color:var(--text-m);font-family:var(--font-mono);font-weight:600;}
+    .sb-sep{width:1px;height:20px;background:var(--border-subtle);}
+    .stress-btn{
+      padding:4px 10px;border-radius:5px;border:1px solid var(--border-subtle);
+      background:var(--bg-card);color:var(--text-s);font-size:11px;cursor:pointer;
+      transition:.15s;font-family:var(--font-mono);
+    }
+    .stress-btn:hover{border-color:var(--amber);color:var(--amber);}
+    .stress-btn.active{background:rgba(245,158,11,.18);border-color:var(--amber);color:var(--amber);}
+    input[type=range].sb-slider{
+      -webkit-appearance:none;width:90px;height:3px;border-radius:2px;
+      background:var(--border-panel);cursor:pointer;
+    }
+    input[type=range].sb-slider::-webkit-slider-thumb{
+      -webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+      background:var(--cyan);cursor:pointer;
+    }
+    .sb-gain-label{font-size:11px;color:var(--cyan);font-family:var(--font-mono);min-width:28px;}
+    #mission-dock{
+      position:fixed;left:20px;bottom:60px;z-index:800;display:flex;align-items:center;gap:20px;
+      max-width:calc(100vw - 40px);padding:12px 16px;border:1px solid var(--border-panel);border-radius:12px;
+      background:rgba(8,14,28,.94);box-shadow:0 12px 34px rgba(0,0,0,.36);backdrop-filter:blur(14px);
+    }
+    .dock-group{display:flex;flex-direction:column;gap:7px;min-width:180px;}
+    .dock-group.swarm{min-width:250px;}
+    .dock-title{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:10px;font-weight:800;letter-spacing:.55px;color:var(--text-s);}
+    .dock-value{font:700 13px var(--font-mono);color:var(--cyan);}
+    .dock-range{width:100%;accent-color:var(--cyan);cursor:pointer;}
+    .dock-actions{display:flex;gap:8px;align-items:center;}
+    .dock-action{min-height:36px;padding:7px 12px;border:1px solid var(--border-panel);border-radius:7px;background:#10253a;color:var(--text-m);font-size:11px;font-weight:750;letter-spacing:.3px;cursor:pointer;white-space:nowrap;}
+    .dock-action:hover,.dock-action.active{border-color:var(--cyan);color:var(--cyan);background:rgba(56,189,248,.12);}
+    .dock-action.warn.active{border-color:var(--amber);color:var(--amber);background:rgba(245,158,11,.12);}
+    .dock-divider{height:40px;width:1px;background:var(--border-subtle);}
+    @media(max-width:1050px){
+      #cmd-bar{overflow-x:auto}.arena-stats{min-width:max-content}.cb-controls{min-width:max-content}
+      #performance-strip{left:14px;transform:none;top:64px;gap:10px;padding:7px 12px}
+      #btn-matrix{top:64px;right:14px;min-width:0}
+      #mission-dock{left:12px;right:12px;max-width:none;overflow-x:auto;gap:12px}
+      .dock-group{min-width:150px}.dock-group.swarm{min-width:190px}
+    }
+
+    /* ── LOADING OVERLAY ────────────────────────────────────────────── */
+    #loading-overlay{
+      position:fixed;inset:0;background:rgba(5,8,17,.95);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      z-index:9999;gap:16px;transition:opacity .4s;
+    }
+    #loading-overlay.hidden{opacity:0;pointer-events:none;}
+    .ld-spinner{
+      width:48px;height:48px;border:3px solid var(--border-panel);
+      border-top-color:var(--cyan);border-radius:50%;animation:spin 0.9s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .ld-title{font-size:18px;font-weight:700;color:var(--text-w);}
+    .ld-sub{font-size:12px;color:var(--text-s);font-family:var(--font-mono);}
+    .ld-progress-bar{width:300px;height:3px;background:var(--border-panel);border-radius:2px;overflow:hidden;}
+    .ld-progress-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));
+      border-radius:2px;width:0%;transition:width .3s;}
+
+    /* ── COMPARISON MODAL ───────────────────────────────────────────── */
+    #cmp-modal{
+      position:fixed;inset:0;background:rgba(5,8,17,.85);backdrop-filter:blur(8px);
+      z-index:9900;display:flex;align-items:center;justify-content:center;
+      opacity:0;pointer-events:none;transition:opacity .3s;
+    }
+    #cmp-modal.show{opacity:1;pointer-events:all;}
+    .cmp-box{
+      background:var(--bg-panel);border:1px solid var(--border-panel);border-radius:16px;
+      padding:28px;min-width:600px;max-width:min(1100px,94vw);position:relative;
+    }
+    .cmp-close{
+      position:absolute;top:14px;right:14px;width:28px;height:28px;
+      border-radius:50%;border:1px solid var(--border-subtle);background:var(--bg-card);
+      color:var(--text-s);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    }
+    .cmp-close:hover{color:var(--text-w);}
+    .cmp-title{font-size:16px;font-weight:700;color:var(--text-w);margin-bottom:4px;}
+    .cmp-sub{font-size:12px;color:var(--text-s);font-family:var(--font-mono);margin-bottom:20px;}
+    .cmp-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+    .cmp-box.matrix-box{width:min(1500px,96vw);max-height:88vh;overflow:auto;padding:28px 30px;}
+    .cmp-grid.matrix{grid-template-columns:1.15fr repeat(6,minmax(92px,1fr));gap:7px;}
+    .cmp-grid.matrix .cmp-cell{padding:8px 6px;font-size:11px;}
+    .cmp-section-title{grid-column:1/-1;color:var(--text-w);font-size:14px;font-weight:800;margin:12px 0 2px;padding-top:10px;border-top:1px solid var(--border-panel);}
+    .cmp-col-h{font-size:11px;font-weight:700;padding:6px 10px;border-radius:6px;text-align:center;margin-bottom:4px;}
+    .cmp-col-h.metric{background:var(--bg-card);color:var(--text-s);}
+    .cmp-col-h.base{background:rgba(239,68,68,.18);color:var(--red);}
+    .cmp-col-h.tune{background:rgba(56,189,248,.18);color:var(--cyan);}
+    .cmp-row{display:contents;}
+    .cmp-cell{
+      padding:7px 10px;border-radius:6px;border:1px solid var(--border-subtle);
+      background:var(--bg-card);font-size:12px;font-family:var(--font-mono);
+      color:var(--text-m);text-align:center;
+    }
+    .cmp-cell.label{text-align:left;color:var(--text-s);}
+    .cmp-cell.better{color:var(--emerald);}
+    .cmp-cell.worse{color:var(--red);}
+    .delta-badge{
+      display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;
+    }
+    .delta-badge.pos{background:rgba(16,185,129,.2);color:var(--emerald);}
+    .delta-badge.neg{background:rgba(239,68,68,.2);color:var(--red);}
+
+    /* tooltip for comm links */
+    #comm-tooltip{
+      position:fixed;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border-panel);
+      border-radius:6px;font-size:11px;font-family:var(--font-mono);color:var(--text-m);
+      pointer-events:none;z-index:800;display:none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     TOP COMMAND BAR
+══════════════════════════════════════════════════════════════════════ -->
+<header id="cmd-bar">
+  <!-- Brand -->
+  <div class="cb-brand">
+    <div class="cb-emblem">AS</div>
+    <div class="cb-title-wrap">
+      <div class="cb-title">AERO-SWARM</div>
+      <div class="cb-sub">UAV Scalability &amp; Robustness Research</div>
+    </div>
+  </div>
+
+  <!-- ARENA A stats -->
+  <div class="arena-stats left" id="stats-baseline">
+    <span class="arena-label baseline">▲ ARENA A — BASELINE</span>
+    <div class="stat-chip"><span class="sc-label">UAVs</span><span class="sc-val red" id="b-uavs">—/—</span></div>
+    <div class="stat-chip"><span class="sc-label">COV%</span><span class="sc-val red" id="b-cov">—</span></div>
+    <div class="stat-chip"><span class="sc-label">COLL</span><span class="sc-val amber" id="b-coll">—</span></div>
+    <div class="stat-chip"><span class="sc-label">PDR%</span><span class="sc-val red" id="b-pdr">—</span></div>
+    <div class="stat-chip"><span class="sc-label">S_IDX</span><span class="sc-val muted" id="b-sidx">STBY</span></div>
+    <div class="stat-chip"><span class="sc-label">R_IDX</span><span class="sc-val muted" id="b-ridx">STBY</span></div>
+  </div>
+
+  <!-- Center Controls -->
+  <div class="cb-controls">
+    <span class="ctrl-label" id="n-readout">15 UAVs</span>
+    <div class="ctrl-sep"></div>
+    <label class="ctrl-label" title="Progress reporting cycle; mission continues until stopped">WINDOW:</label>
+    <select class="ctrl-sel" id="sel-dur" title="Progress reporting cycle. Flight runs until stopped.">
+      <option value="20">20 s</option>
+      <option value="30" selected>30 s</option>
+      <option value="60">60 s</option>
+    </select>
+    <div class="ctrl-sep"></div>
+    <button class="ctrl-btn active" id="btn-execute" onclick="executeDual()">▶ EXECUTE DUAL</button>
+    <button class="ctrl-btn" id="btn-pause" onclick="togglePause()" disabled>⏸ PAUSE</button>
+    <button class="ctrl-btn danger" id="btn-stop" onclick="resetAll()" title="Stop the live mission and clear the arenas" disabled>■ STOP / RESET</button>
+    <div class="ctrl-sep"></div>
+    <label class="ctrl-label">CAM:</label>
+    <select class="ctrl-sel" id="sel-cam" onchange="setCameraMode(this.value)">
+      <option value="orbit">Orbit</option>
+      <option value="iso">Isometric</option>
+      <option value="topdown">Top-Down</option>
+      <option value="sync">Synchronized</option>
+    </select>
+    <div class="ctrl-sep"></div>
+    <button class="ctrl-btn" onclick="showComparison()">📊 RESULTS</button>
+  </div>
+
+  <!-- ARENA B stats -->
+  <div class="arena-stats" id="stats-tuned">
+    <span class="arena-label tuned">◆ ARENA B — TUNED</span>
+    <div class="stat-chip"><span class="sc-label">UAVs</span><span class="sc-val cyan" id="t-uavs">—/—</span></div>
+    <div class="stat-chip"><span class="sc-label">COV%</span><span class="sc-val cyan" id="t-cov">—</span></div>
+    <div class="stat-chip"><span class="sc-label">COLL</span><span class="sc-val emerald" id="t-coll">—</span></div>
+    <div class="stat-chip"><span class="sc-label">PDR%</span><span class="sc-val cyan" id="t-pdr">—</span></div>
+    <div class="stat-chip"><span class="sc-label">S_IDX</span><span class="sc-val muted" id="t-sidx">STBY</span></div>
+    <div class="stat-chip"><span class="sc-label">R_IDX</span><span class="sc-val muted" id="t-ridx">STBY</span></div>
+  </div>
+</header>
+
+<section id="performance-strip" aria-label="Live scalability and robustness comparison">
+  <div class="perf-item"><span>⚡ SCALABILITY</span><strong id="scalability-gain">+—%</strong></div>
+  <div class="perf-divider"></div>
+  <div class="perf-item"><span>🛡 ROBUSTNESS</span><strong id="robustness-gain">+—%</strong></div>
+</section>
+<button class="ctrl-btn" id="btn-matrix" onclick="runStatisticalMatrix()">📊 30-RUN MATRIX</button>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     DUAL 3-D ARENAS
+══════════════════════════════════════════════════════════════════════ -->
+<div id="dual-arena">
+  <!-- ARENA A — BASELINE -->
+  <div class="arena-pane" id="pane-baseline">
+    <canvas id="canvas-baseline"></canvas>
+    <div class="arena-overlay">
+      <div class="arena-name-badge baseline">◉ ARENA A — BASELINE SWARM</div>
+      <div class="arena-live-cov" id="b-cov-label">COV: —% &nbsp;|&nbsp; T: —s</div>
+    </div>
+    <div class="live-metrics baseline glass-card">
+      <div class="metric-title">BASELINE CONFIGURATION</div>
+      <div class="metric-row"><span>Area Coverage</span><span class="metric-value" id="b-side-cov">0.0%</span></div>
+      <div class="metric-meter"><span id="b-side-cov-bar"></span></div>
+      <div class="metric-row"><span>Collisions / Crashes</span><span class="metric-value" id="b-side-coll">0</span></div>
+      <div class="metric-row"><span>Active / Surviving</span><span class="metric-value" id="b-side-alive">— / —</span></div>
+      <div class="metric-row"><span>Comm Bandwidth</span><span class="metric-value">High · O(N²)</span></div>
+      <div class="metric-row"><span>Scalability Index</span><span class="metric-value" id="b-side-sidx">— / 100</span></div>
+      <div class="metric-row"><span>Robustness Index</span><span class="metric-value" id="b-side-ridx">— / 100</span></div>
+      <div class="live-knobs"><b>DEFAULT KNOBS</b><br>Safety margin: <b>0.6 m</b> · Sensor filter: <b>1.0</b><br>Comms: <b>Global broadcast (20 Hz)</b><br>Failover: <b>OFF</b></div>
+    </div>
+    <div class="arena-progress">
+      <div class="prog-ring">
+        <div class="prog-dot idle" id="b-dot"></div>
+        <span class="prog-txt" id="b-prog-txt">IDLE</span>
+      </div>
+    </div>
+    <div class="param-card">
+      <div class="param-card-title baseline">BASELINE CONFIG</div>
+      <div class="param-row"><span class="param-key">comm_hz</span><span class="param-val">20.0</span></div>
+      <div class="param-row"><span class="param-key">neighbours</span><span class="param-val">8</span></div>
+      <div class="param-row"><span class="param-key">safety_m</span><span class="param-val">0.6</span></div>
+      <div class="param-row"><span class="param-key">sf_gain</span><span class="param-val">1.0</span></div>
+      <div class="param-row"><span class="param-key">failsafe%</span><span class="param-val">5</span></div>
+    </div>
+  </div>
+
+  <div id="arena-divider"></div>
+
+  <!-- ARENA B — TUNED -->
+  <div class="arena-pane" id="pane-tuned">
+    <canvas id="canvas-tuned"></canvas>
+    <div class="arena-overlay">
+      <div class="arena-name-badge tuned">◆ ARENA B — TUNED (PROPOSED)</div>
+      <div class="arena-live-cov" id="t-cov-label">COV: —% &nbsp;|&nbsp; T: —s</div>
+    </div>
+    <div class="live-metrics tuned glass-card">
+      <div class="metric-title">TUNED SWARM CONFIGURATION</div>
+      <div class="metric-row"><span>Area Coverage</span><span class="metric-value" id="t-side-cov">0.0%</span></div>
+      <div class="metric-meter"><span id="t-side-cov-bar"></span></div>
+      <div class="metric-row"><span>Collisions / Crashes</span><span class="metric-value" id="t-side-coll">0</span></div>
+      <div class="metric-row"><span>Active / Surviving</span><span class="metric-value" id="t-side-alive">— / —</span></div>
+      <div class="metric-row"><span>Comm Bandwidth</span><span class="metric-value">Optimized · O(N)</span></div>
+      <div class="metric-row"><span>Scalability Index</span><span class="metric-value" id="t-side-sidx">— / 100</span></div>
+      <div class="metric-row"><span>Robustness Index</span><span class="metric-value" id="t-side-ridx">— / 100</span></div>
+      <div class="live-knobs"><b>TUNED KNOBS</b><br>Safety margin: <b>2.8 m</b> · Sensor filter: <b>0.22</b><br>Comms: <b>k-nearest (k=4, 5 Hz)</b><br>Failover: <b>ON · Dynamic reassignment</b></div>
+    </div>
+    <div class="arena-progress">
+      <div class="prog-ring">
+        <div class="prog-dot idle" id="t-dot"></div>
+        <span class="prog-txt" id="t-prog-txt">IDLE</span>
+      </div>
+    </div>
+    <div class="param-card">
+      <div class="param-card-title tuned">TUNED CONFIG (PROPOSED)</div>
+      <div class="param-row"><span class="param-key">comm_hz</span><span class="param-val">5.0</span></div>
+      <div class="param-row"><span class="param-key">neighbours</span><span class="param-val">4</span></div>
+      <div class="param-row"><span class="param-key">safety_m</span><span class="param-val">2.8</span></div>
+      <div class="param-row"><span class="param-key">sf_gain</span><span class="param-val">0.22</span></div>
+      <div class="param-row"><span class="param-key">failsafe%</span><span class="param-val">15</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     BOTTOM STATUS BAR
+══════════════════════════════════════════════════════════════════════ -->
+<section id="mission-dock" aria-label="Mission parameters and stress controls">
+  <div class="dock-group swarm">
+    <div class="dock-title"><span>SWARM SIZE (N)</span><output class="dock-value" id="swarm-value">15 UAVs</output></div>
+    <input class="dock-range" id="swarm-slider" type="range" min="5" max="50" step="5" value="15" oninput="onSwarmChange(this.value)">
+  </div>
+  <div class="dock-divider"></div>
+  <div class="dock-group">
+    <div class="dock-title"><span>EUROC IMU NOISE</span><output class="dock-value" id="noise-value">1.0×</output></div>
+    <input class="dock-range" id="noise-slider" type="range" min="0" max="3" step="0.1" value="1" oninput="onNoiseChange(this.value)">
+  </div>
+  <div class="dock-divider"></div>
+  <div class="dock-group">
+    <div class="dock-title"><span>LINK PACKET LOSS</span><output class="dock-value" id="packet-value">10%</output></div>
+    <input class="dock-range" id="packet-slider" type="range" min="0" max="60" step="1" value="10" oninput="onPacketLossChange(this.value)">
+  </div>
+  <div class="dock-divider"></div>
+  <div class="dock-actions">
+    <button class="dock-action" id="btn-gps" title="Arms GPS dropout for the next mission" aria-pressed="false" onclick="toggleStress('gps')">🛰 GPS DROPOUT: OFF</button>
+    <button class="dock-action warn" id="btn-kill" title="Arms failure of the third UAV for the next mission" aria-pressed="false" onclick="toggleStress('kill')">⚡ KILL DRONE #3 (FAILOVER TEST)</button>
+  </div>
+</section>
+<div id="status-bar">
+  <div class="sb-item">
+    <span class="sb-label">SEED</span>
+    <span class="sb-val" id="sb-seed">42</span>
+  </div>
+  <div class="sb-sep"></div>
+  <div class="sb-item">
+    <span class="sb-label">FRAME</span>
+    <span class="sb-val" id="sb-frame">—</span>
+  </div>
+  <div class="sb-sep"></div>
+  <div class="sb-item">
+    <span class="sb-label">SIM-T</span>
+    <span class="sb-val" id="sb-simt">0.00 s</span>
+  </div>
+  <div class="sb-sep"></div>
+  <div class="sb-item">
+    <span class="sb-label">SPEED</span>
+    <input type="range" class="sb-slider" id="speed-slider" min="0.5" max="4" step="0.5" value="1" oninput="onSpeedChange(this.value)">
+    <span class="sb-gain-label" id="speed-label">1.0×</span>
+  </div>
+  <div class="sb-sep"></div>
+  <div class="sb-item" style="margin-left:auto;">
+    <span class="sb-val" id="sb-connection" style="color:var(--emerald);font-size:10px;">CONNECTING…</span>
+    <span class="sb-label">DATA:</span>
+    <span class="sb-val" style="color:var(--text-d);font-size:10px;">EuRoC MAV · ADiS16448 IMU · Urban GPS</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     LOADING OVERLAY
+══════════════════════════════════════════════════════════════════════ -->
+<div id="loading-overlay" class="hidden">
+  <div class="ld-spinner"></div>
+  <div class="ld-title">COMPUTING DUAL SIMULATION</div>
+  <div class="ld-sub" id="ld-sub">Initialising baseline &amp; tuned swarms…</div>
+  <div class="ld-progress-bar"><div class="ld-progress-fill" id="ld-fill"></div></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     COMPARISON RESULTS MODAL
+══════════════════════════════════════════════════════════════════════ -->
+<div id="cmp-modal">
+  <div class="cmp-box">
+    <button class="cmp-close" onclick="closeComparison()">✕</button>
+    <div class="cmp-title" id="cmp-title">Mission Comparison Results</div>
+    <div class="cmp-sub" id="cmp-sub">Run experimental data will appear here after mission completes.</div>
+    <div class="cmp-grid" id="cmp-grid" style="margin-top:16px;">
+      <div class="cmp-col-h metric">METRIC</div>
+      <div class="cmp-col-h base">▲ BASELINE</div>
+      <div class="cmp-col-h tune">◆ TUNED</div>
+    </div>
+  </div>
+</div>
+
+<div id="comm-tooltip"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     THREE.JS DUAL-ARENA ENGINE
+══════════════════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS & CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+const ARENA_SIZE = 400;        // metres; matches uav_platform.sim.runner.ARENA_SIZE
+const GRID_CELLS = 40;
+const CELL_SIZE = ARENA_SIZE / GRID_CELLS;
+const MAX_TRAIL = 14;          // short, readable flight trace
+const FRAME_INTERVAL_MS = 80;  // base replay interval
+const OBSTACLE_COUNT = 5;
+
+const BASELINE_COLOR = 0xef4444;
+const TUNED_COLOR    = 0x38bdf8;
+const GROUND_COLOR   = 0x0d1a0d;
+const GRID_COLOR     = 0x1a2e1a;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OBSTACLE LAYOUT (shared both arenas)
+// ─────────────────────────────────────────────────────────────────────────────
+const OBSTACLE_SPECS = [
+  {x:-60,z:-55,r:6,h:50},{x:60,z:-40,r:5,h:40},{x:0,z:60,r:7,h:35},
+  {x:-80,z:50,r:4,h:45},{x:70,z:55,r:5,h:60}
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let baselineScene = null, tunedScene = null;
+let baselineFrames = [], tunedFrames = [];
+let baselineMetrics = null, tunedMetrics = null;
+const liveArenaIndices = {baseline: null, tuned: null};
+let replayIdx = 0, replayTimer = null;
+let streamFrameQueue = [];
+let streamComputedDone = false;
+let continuousMode = false;
+let resetPending = false;
+let paused = false;
+let simRunning = false;
+let replaySpeed = 1.0;
+let stressFlags = {pkt:false, gps:false, kill:false};
+let currentSeed = 42;
+let cameraMode = 'orbit';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ARENA SCENE CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+class ArenaScene {
+  constructor(canvasId, identity /* 'baseline' | 'tuned' */) {
+    this.identity = identity;
+    this.accentColor = identity === 'baseline' ? BASELINE_COLOR : TUNED_COLOR;
+    this.canvas = document.getElementById(canvasId);
+    this.uavMeshes = {};   // uav_id → THREE.Group
+    this.trailGeoms = {};  // uav_id → { positions: [], line: THREE.Line }
+    this.trailPositions = {}; // uav_id → []
+    this.commLines = [];
+    this.heatGrid = [];    // 40×40 visit counts
+    this.lastFrame = null;
+
+    this._init();
+  }
+
+  _init() {
+    const W = this.canvas.clientWidth || 800;
+    const H = this.canvas.clientHeight || 600;
+
+    // Renderer
+    // Two side-by-side WebGL views are rendered continuously. Keep the backing
+    // resolution bounded so high-DPI laptops do not render four times the pixels.
+    this.renderer = new THREE.WebGLRenderer({canvas: this.canvas, antialias: false, alpha: false, powerPreference: 'high-performance'});
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+    this.renderer.setSize(W, H);
+    this.renderer.shadowMap.enabled = false;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.setClearColor(0x050811, 1);
+
+    // Scene & Camera
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.FogExp2(0x060c18, 0.0007);
+
+    this.camera = new THREE.PerspectiveCamera(48, W / H, 0.1, 2000);
+    this.camera.position.set(235, 185, 265);
+    this.camera.lookAt(0, 0, 0);
+
+    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.07;
+    this.controls.minDistance = 20;
+    this.controls.maxDistance = 1000;
+    this.controls.maxPolarAngle = Math.PI / 2.05;
+    this.controls.target.set(0, 5, 0);
+
+    this._buildEnvironment();
+    this._buildHeatmap();
+    this._buildGCS();
+
+    this._animate();
+  }
+
+  _buildEnvironment() {
+    // Sky hemisphere
+    const hemi = new THREE.HemisphereLight(0x8ccfff, 0x263526, 1.25);
+    this.scene.add(hemi);
+
+    // Directional sun
+    const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+    sun.position.set(80, 160, 60);
+    sun.castShadow = false;
+    this.scene.add(sun);
+
+    // Fill light
+    const fill = new THREE.DirectionalLight(0x64baff, 0.9);
+    fill.position.set(-60, 40, -80);
+    this.scene.add(fill);
+
+    // Ground plane
+    const gGeo = new THREE.PlaneGeometry(ARENA_SIZE, ARENA_SIZE, 60, 60);
+    // gentle terrain bump
+    const pos = gGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i);
+      const bump = Math.sin(x * 0.03) * Math.cos(z * 0.03) * 1.5
+                 + Math.sin(x * 0.08 + 1) * Math.cos(z * 0.06) * 0.6;
+      pos.setY(i, bump);
+    }
+    gGeo.computeVertexNormals();
+    const gMat = new THREE.MeshStandardMaterial({color: 0x17261f, roughness: 0.92, metalness: 0.04});
+    const ground = new THREE.Mesh(gGeo, gMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
+
+    const terrainMarks = new THREE.Group();
+    const markMaterial = new THREE.MeshBasicMaterial({color: this.accentColor, transparent: true, opacity: 0.3});
+    for (let i = -3; i <= 3; i++) {
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_SIZE * 0.92, 0.45), markMaterial);
+      road.rotation.x = -Math.PI / 2;
+      road.position.set(0, 0.12, i * 45);
+      terrainMarks.add(road);
+    }
+    this.scene.add(terrainMarks);
+
+    // Grid overlay
+    const grid = new THREE.GridHelper(ARENA_SIZE, GRID_CELLS, 0x34715f, 0x244338);
+    grid.material.opacity = 0.48;
+    grid.material.transparent = true;
+    this.scene.add(grid);
+
+    // Arena boundary
+    const bGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(ARENA_SIZE, 100, ARENA_SIZE));
+    const bMat = new THREE.LineBasicMaterial({color: this.accentColor, opacity: 0.32, transparent: true});
+    const boundary = new THREE.LineSegments(bGeo, bMat);
+    boundary.position.y = 50;
+    this.scene.add(boundary);
+
+    // Obstacle towers
+    OBSTACLE_SPECS.forEach(obs => {
+      const tGeo = new THREE.CylinderGeometry(obs.r, obs.r * 1.2, obs.h, 8);
+      const tMat = new THREE.MeshStandardMaterial({
+        color: 0x4a5a6a, metalness: 0.6, roughness: 0.4
+      });
+      const tower = new THREE.Mesh(tGeo, tMat);
+      tower.position.set(obs.x, obs.h / 2, obs.z);
+      tower.castShadow = true;
+      tower.receiveShadow = true;
+      this.scene.add(tower);
+
+      // Red aircraft warning light
+      const lGeo = new THREE.SphereGeometry(0.5, 8, 8);
+      const lMat = new THREE.MeshBasicMaterial({color: 0xff2200});
+      const light = new THREE.Mesh(lGeo, lMat);
+      light.position.set(obs.x, obs.h + 0.5, obs.z);
+      this.scene.add(light);
+
+      // Warning stripes
+      const sGeo = new THREE.CylinderGeometry(obs.r + 0.1, obs.r * 1.2 + 0.1, 1.5, 8);
+      const sMat = new THREE.MeshBasicMaterial({color: 0xffaa00, wireframe: false, opacity: 0.4, transparent: true});
+      for (let yi = 0; yi < 3; yi++) {
+        const stripe = new THREE.Mesh(sGeo, sMat);
+        stripe.position.set(obs.x, obs.h * 0.25 + yi * obs.h * 0.25, obs.z);
+        this.scene.add(stripe);
+      }
+    });
+
+    // Stars / particles in background
+    const starGeo = new THREE.BufferGeometry();
+    const starVerts = [];
+    for (let i = 0; i < 800; i++) {
+      starVerts.push((Math.random() - 0.5) * 1600,
+                     100 + Math.random() * 400,
+                     (Math.random() - 0.5) * 1600);
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+    const starMat = new THREE.PointsMaterial({color: 0x334466, size: 1.2});
+    this.scene.add(new THREE.Points(starGeo, starMat));
+  }
+
+  _buildHeatmap() {
+    this.heatGrid = Array.from({length: GRID_CELLS}, () => new Array(GRID_CELLS).fill(0));
+    // A single alpha texture replaces 1,600 transparent meshes per arena.
+    this.heatCanvas = document.createElement('canvas');
+    this.heatCanvas.width = GRID_CELLS;
+    this.heatCanvas.height = GRID_CELLS;
+    this.heatContext = this.heatCanvas.getContext('2d', {willReadFrequently: true});
+    this.heatImage = this.heatContext.createImageData(GRID_CELLS, GRID_CELLS);
+    this.heatTexture = new THREE.CanvasTexture(this.heatCanvas);
+    this.heatTexture.magFilter = THREE.NearestFilter;
+    this.heatTexture.minFilter = THREE.LinearFilter;
+    const material = new THREE.MeshBasicMaterial({
+      map: this.heatTexture, transparent: true, depthWrite: false, side: THREE.DoubleSide
+    });
+    this.heatPlane = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_SIZE, ARENA_SIZE), material);
+    this.heatPlane.rotation.x = -Math.PI / 2;
+    this.heatPlane.position.y = 0.3;
+    this.scene.add(this.heatPlane);
+    this._refreshHeatmap();
+  }
+
+  _buildGCS() {
+    // Ground Control Station at origin
+    const baseGeo = new THREE.BoxGeometry(8, 1, 8);
+    const baseMat = new THREE.MeshStandardMaterial({color: 0x2a3a4a, metalness: 0.8});
+    const base = new THREE.Mesh(baseGeo, baseMat);
+    base.position.y = 0.5;
+    this.scene.add(base);
+
+    const antGeo = new THREE.CylinderGeometry(0.1, 0.1, 6, 6);
+    const antMat = new THREE.MeshStandardMaterial({color: 0x888888});
+    const antenna = new THREE.Mesh(antGeo, antMat);
+    antenna.position.y = 4;
+    this.scene.add(antenna);
+
+    // Dish
+    const dishGeo = new THREE.ConeGeometry(2, 1.5, 12, 1, true);
+    const dishMat = new THREE.MeshStandardMaterial({color: 0xcccccc, side: THREE.DoubleSide});
+    const dish = new THREE.Mesh(dishGeo, dishMat);
+    dish.rotation.z = Math.PI / 2;
+    dish.rotation.y = Math.PI / 4;
+    dish.position.set(1.5, 6.5, 0);
+    this.scene.add(dish);
+
+    // Label sprite
+    const canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 18px sans-serif';
+    ctx.fillText('GCS', 10, 22);
+    const tex = new THREE.CanvasTexture(canvas);
+    const spGeo = new THREE.PlaneGeometry(8, 2);
+    const spMat = new THREE.MeshBasicMaterial({map: tex, transparent: true, side: THREE.DoubleSide});
+    const sprite = new THREE.Mesh(spGeo, spMat);
+    sprite.position.set(0, 10, 0);
+    this.scene.add(sprite);
+  }
+
+  // ── Quadcopter model factory ──────────────────────────────────────
+  _makeQuadcopter(uavId) {
+    const group = new THREE.Group();
+    const col = this.accentColor;
+    const rotorMat = new THREE.MeshBasicMaterial({color: col, transparent: true, opacity: 0.72, depthWrite: false});
+    const bodyMat = new THREE.MeshStandardMaterial({color: 0x303846, metalness: 0.45, roughness: 0.48});
+    // Merge the body and four arms, and merge the rotor disks, to keep each
+    // quadcopter legible with only three draw calls including its ID badge.
+    const mergeParts = parts => {
+      const vertices = [];
+      for (const part of parts) {
+        const mesh = new THREE.Mesh(part.geometry);
+        mesh.position.set(part.x || 0, part.y || 0, part.z || 0);
+        mesh.rotation.set(part.rx || 0, part.ry || 0, part.rz || 0);
+        mesh.updateMatrix();
+        const attr = part.geometry.attributes.position;
+        const v = new THREE.Vector3();
+        for (let i = 0; i < attr.count; i++) {
+          v.fromBufferAttribute(attr, i).applyMatrix4(mesh.matrix);
+          vertices.push(v.x, v.y, v.z);
+        }
+        part.geometry.dispose();
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.computeVertexNormals();
+      return geometry;
+    };
+    const bodyParts = [{geometry: new THREE.CylinderGeometry(0.48, 0.58, 0.38, 8)}];
+    const rotorParts = [];
+    [45, 135, 225, 315].forEach((ang, i) => {
+      const rad = ang * Math.PI / 180;
+      const x = Math.cos(rad) * 1.35, z = Math.sin(rad) * 1.35;
+      bodyParts.push({geometry: new THREE.CylinderGeometry(0.065, 0.065, 3.8, 5), ry: rad, rz: Math.PI / 2});
+      rotorParts.push({geometry: new THREE.CylinderGeometry(0.48, 0.48, 0.035, 10), x, y: 0.24, z});
+    });
+    const body = new THREE.Mesh(mergeParts(bodyParts), bodyMat);
+    group.add(body);
+    const rotorAssembly = new THREE.Mesh(mergeParts(rotorParts), rotorMat);
+    group.add(rotorAssembly);
+
+    // ID badge sprite
+    const bc = document.createElement('canvas');
+    bc.width = 64; bc.height = 20;
+    const bctx = bc.getContext('2d');
+    bctx.fillStyle = this.identity === 'baseline' ? '#ef4444' : '#38bdf8';
+    bctx.font = 'bold 13px monospace';
+    bctx.fillText('U' + String(uavId).padStart(2, '0'), 4, 15);
+    const badgeTex = new THREE.CanvasTexture(bc);
+    const badgeGeo = new THREE.PlaneGeometry(2.5, 0.8);
+    const badgeMat = new THREE.MeshBasicMaterial({map: badgeTex, transparent: true, side: THREE.DoubleSide});
+    const badge = new THREE.Mesh(badgeGeo, badgeMat);
+    badge.position.y = 1.2;
+    group.add(badge);
+
+    group.userData = {rotors: [{mesh: rotorAssembly, dir: 1}], uavId, alive: true};
+    group.scale.setScalar(3.6);
+    return group;
+  }
+
+  // ── Update from simulation frame ─────────────────────────────────
+  updateFromFrame(frame, frameIdx) {
+    if (!frame || !frame.uavs) return;
+    this.lastFrame = frame;
+
+    // Ensure meshes exist for all UAVs
+    frame.uavs.forEach(uav => {
+      if (!this.uavMeshes[uav.id]) {
+        const mesh = this._makeQuadcopter(uav.id);
+        this.scene.add(mesh);
+        this.uavMeshes[uav.id] = mesh;
+        this.trailPositions[uav.id] = [];
+        const footprintMaterial = new THREE.MeshBasicMaterial({
+          color: this.accentColor, transparent: true, opacity: 0.075, side: THREE.DoubleSide,
+          depthWrite: false
+        });
+        const footprint = new THREE.Mesh(new THREE.CircleGeometry(10, 24), footprintMaterial);
+        footprint.rotation.x = -Math.PI / 2;
+        footprint.position.y = 0.18;
+        footprint.userData.uavId = uav.id;
+        this.scene.add(footprint);
+        mesh.userData.footprint = footprint;
+      }
+    });
+
+    // Position all UAVs
+    frame.uavs.forEach(uav => {
+      const mesh = this.uavMeshes[uav.id];
+      if (!mesh) return;
+
+      const targetX = uav.x || 0;
+      const targetY = Math.max(1.5, (uav.z || 5));  // z in sim = altitude
+      const targetZ = uav.y || 0;                    // y in sim = world-Z
+
+      // Store each backend position as a render target; _animate eases toward it every frame.
+      const targetPosition = new THREE.Vector3(targetX, targetY, targetZ);
+      if (mesh.userData.hasPosition) {
+        mesh.userData.targetPosition.copy(targetPosition);
+      } else {
+        mesh.position.copy(targetPosition);
+        mesh.userData.targetPosition = targetPosition;
+        mesh.userData.hasPosition = true;
+      }
+
+      // Yaw
+      if (uav.yaw !== undefined) {
+        mesh.rotation.y = -uav.yaw;
+      }
+
+      // Bank slightly toward velocity
+      if (uav.vx !== undefined && uav.vy !== undefined) {
+        const spd = Math.sqrt(uav.vx ** 2 + uav.vy ** 2);
+        mesh.rotation.x = THREE.MathUtils.lerp(mesh.rotation.x, -uav.vx * 0.04, 0.1);
+        mesh.rotation.z = THREE.MathUtils.lerp(mesh.rotation.z, -uav.vy * 0.04, 0.1);
+      }
+
+      // Alive / dead
+      mesh.userData.alive = uav.alive !== false;
+      if (!mesh.userData.alive) {
+        if (mesh.userData.footprint) mesh.userData.footprint.visible = false;
+        // Crashed: tumble and sink
+        mesh.rotation.x += 0.05;
+        mesh.rotation.z += 0.03;
+        mesh.position.y = Math.max(0.1, mesh.position.y - 0.1);
+        if (!mesh.userData.deadStyled) {
+          mesh.children.forEach(c => {
+            if (c.material) {
+              c.material = c.material.clone();
+              c.material.color.set(0x444444);
+              c.material.emissive && c.material.emissive.set(0x000000);
+            }
+          });
+          mesh.userData.deadStyled = true;
+        }
+      }
+
+      // Trail
+      const trail = this.trailPositions[uav.id];
+      trail.push(new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z));
+      if (trail.length > MAX_TRAIL) trail.shift();
+      this._updateTrail(uav.id, trail);
+    });
+
+    // Update coverage heatmap every 3 frames
+    if (frameIdx % 3 === 0) {
+      frame.uavs.forEach(uav => {
+        if (uav.alive === false) return;
+        const col = Math.floor((uav.x + ARENA_SIZE / 2) / CELL_SIZE);
+        const row = Math.floor((uav.y + ARENA_SIZE / 2) / CELL_SIZE);
+        if (row >= 0 && row < GRID_CELLS && col >= 0 && col < GRID_CELLS) {
+          this.heatGrid[row][col] = Math.min(this.heatGrid[row][col] + 1, 20);
+        }
+      });
+      this._refreshHeatmap();
+    }
+
+    // Communication links
+    this._updateCommLinks(frame);
+  }
+
+  _updateTrail(uavId, positions) {
+    let trail = this.trailGeoms[uavId];
+    if (!trail) {
+      const geo = new THREE.BufferGeometry();
+      const attr = new THREE.BufferAttribute(new Float32Array(MAX_TRAIL * 3), 3);
+      attr.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('position', attr);
+      const mat = new THREE.LineBasicMaterial({color: this.accentColor, opacity: 0.16, transparent: true, depthWrite: false});
+      const line = new THREE.Line(geo, mat);
+      line.frustumCulled = false;
+      this.scene.add(line);
+      trail = this.trailGeoms[uavId] = {line};
+    }
+    const attr = trail.line.geometry.attributes.position;
+    positions.forEach((p, i) => attr.setXYZ(i, p.x, p.y, p.z));
+    attr.needsUpdate = true;
+    trail.line.geometry.setDrawRange(0, positions.length);
+  }
+
+  _refreshHeatmap() {
+    if (!this.heatImage) return;
+    const data = this.heatImage.data;
+    for (let row = 0; row < GRID_CELLS; row++) {
+      for (let col = 0; col < GRID_CELLS; col++) {
+        const i = (row * GRID_CELLS + col) * 4;
+        const t = Math.min(this.heatGrid[row][col] / 15, 1);
+        data[i] = 0;
+        data[i + 1] = Math.round(28 + t * 190);
+        data[i + 2] = Math.round(12 + t * 35);
+        data[i + 3] = t === 0 ? 0 : Math.round(55 + t * 105);
+      }
+    }
+    this.heatContext.putImageData(this.heatImage, 0, 0);
+    this.heatTexture.needsUpdate = true;
+  }
+
+  _updateCommLinks(frame) {
+    const links = (frame.comm_graph && frame.comm_graph.links) ? frame.comm_graph.links : [];
+    const visibleLinks = links.filter(link => link.active).map(link => {
+      const a = this.uavMeshes[link.uav_a];
+      const b = this.uavMeshes[link.uav_b];
+      if (!a || !b) return null;
+      return {link, a, b, distance: a.position.distanceTo(b.position)};
+    }).filter(Boolean).sort((a, b) => a.distance - b.distance).slice(0, 14);
+    visibleLinks.forEach(({link, a, b}, index) => {
+      const loss = link.packet_loss_pct || 0;
+      let col = 0x00ff88;
+      if (loss > 60) col = 0xff4444;
+      else if (loss > 30) col = 0xf59e0b;
+      let line = this.commLines[index];
+      if (!line) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+        const mat = new THREE.LineBasicMaterial({color: col, opacity: 0.16, transparent: true, depthWrite: false});
+        line = new THREE.Line(geo, mat);
+        line.frustumCulled = false;
+        this.scene.add(line);
+        this.commLines[index] = line;
+      }
+      const attr = line.geometry.attributes.position;
+      attr.setXYZ(0, a.position.x, a.position.y, a.position.z);
+      attr.setXYZ(1, b.position.x, b.position.y, b.position.z);
+      attr.needsUpdate = true;
+      line.material.color.setHex(col);
+      line.visible = true;
+    });
+    for (let i = visibleLinks.length; i < this.commLines.length; i++) this.commLines[i].visible = false;
+  }
+
+  resetState() {
+    // Clear UAVs
+    Object.values(this.uavMeshes).forEach(m => {
+      this.scene.remove(m);
+      if (m.userData.footprint) this.scene.remove(m.userData.footprint);
+    });
+    this.uavMeshes = {};
+    // Clear trails
+    Object.values(this.trailGeoms).forEach(t => {
+      this.scene.remove(t.line);
+      t.line.geometry.dispose();
+      t.line.material.dispose();
+    });
+    this.trailGeoms = {};
+    this.trailPositions = {};
+    // Clear comm links
+    this.commLines.forEach(l => {
+      this.scene.remove(l);
+      l.geometry.dispose();
+      l.material.dispose();
+    });
+    this.commLines = [];
+    // Reset heatmap
+    this.heatGrid = Array.from({length: GRID_CELLS}, () => new Array(GRID_CELLS).fill(0));
+    this._refreshHeatmap();
+  }
+
+  setCameraPreset(mode) {
+    switch(mode) {
+      case 'topdown':
+        this.camera.position.set(0, 460, 0.1);
+        this.camera.lookAt(0, 0, 0);
+        this.controls.target.set(0, 0, 0);
+        break;
+      case 'iso':
+        this.camera.position.set(360, 260, 360);
+        this.camera.lookAt(0, 0, 0);
+        this.controls.target.set(0, 0, 0);
+        break;
+      case 'orbit':
+      default:
+        this.camera.position.set(235, 185, 265);
+        this.camera.lookAt(0, 0, 0);
+        this.controls.target.set(0, 5, 0);
+    }
+    this.controls.update();
+  }
+
+  _animate() {
+    requestAnimationFrame(() => this._animate());
+
+    // Update the small set of moving objects without allocating a new array on
+    // every animation frame. The rotor disks are circular, so they remain still.
+    for (const id in this.uavMeshes) {
+      const mesh = this.uavMeshes[id];
+      if (mesh.userData.alive && mesh.userData.targetPosition) {
+        mesh.position.lerp(mesh.userData.targetPosition, 0.12);
+      }
+      if (mesh.userData.footprint) {
+        mesh.userData.footprint.position.set(mesh.position.x, 0.18, mesh.position.z);
+      }
+      // Billboard badge to camera
+      if (mesh.children.length > 0) {
+        const badge = mesh.children[mesh.children.length - 1];
+        if (badge.geometry && badge.geometry.type === 'PlaneGeometry') {
+          badge.lookAt(this.camera.position);
+        }
+      }
+    }
+
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  onResize(w, h) {
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INITIALISE BOTH ARENAS
+// ─────────────────────────────────────────────────────────────────────────────
+function initArenas() {
+  baselineScene = new ArenaScene('canvas-baseline', 'baseline');
+  tunedScene    = new ArenaScene('canvas-tuned', 'tuned');
+
+  // Resize observer
+  const ro = new ResizeObserver(() => {
+    const pa = document.getElementById('pane-baseline');
+    const pb = document.getElementById('pane-tuned');
+    if (baselineScene) baselineScene.onResize(pa.clientWidth, pa.clientHeight);
+    if (tunedScene) tunedScene.onResize(pb.clientWidth, pb.clientHeight);
+  });
+  ro.observe(document.getElementById('pane-baseline'));
+  ro.observe(document.getElementById('pane-tuned'));
+}
+
+window.addEventListener('DOMContentLoaded', initArenas);
+
+let simulationSocket = null;
+function connectSimulationSocket() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  simulationSocket = new WebSocket(`${protocol}//${location.host}/ws/simulation`);
+  simulationSocket.addEventListener('open', () => {
+    const status = document.getElementById('sb-connection');
+    if (status) { status.textContent = 'LIVE LINK'; status.className = 'sb-val connected'; }
+  });
+  simulationSocket.addEventListener('message', ({data}) => {
+    const message = JSON.parse(data);
+    if (message.type === 'progress') {
+      if (!continuousMode && !streamComputedDone) showLoading(`Simulating mission… ${message.sim_time_s.toFixed(1)} s computed`, message.progress);
+    } else if (message.type === 'frame') {
+      hideLoading();
+      streamFrameQueue.push({pair: message.frame, progress: message.progress});
+      while (streamFrameQueue.length > 8) streamFrameQueue.shift();
+      if (!replayTimer) startStreamPlayback();
+    } else if (message.type === 'completed') {
+      if (resetPending) { resetPending = false; return; }
+      baselineMetrics = message.metrics.baseline;
+      tunedMetrics = message.metrics.tuned;
+      setIdx('b', baselineMetrics.scalability_index, baselineMetrics.robustness_index);
+      setIdx('t', tunedMetrics.scalability_index, tunedMetrics.robustness_index);
+      streamComputedDone = true;
+      hideLoading();
+    } else if (message.type === 'error') {
+      simRunning = false;
+      continuousMode = false;
+      streamFrameQueue = [];
+      if (replayTimer) clearInterval(replayTimer);
+      replayTimer = null;
+      hideLoading();
+      setProg('b', 'ERROR'); setProg('t', 'ERROR');
+      document.getElementById('btn-pause').disabled = true;
+      document.getElementById('btn-execute').textContent = '▶ EXECUTE DUAL';
+      document.getElementById('btn-stop').disabled = true;
+      setMissionControlsLocked(false);
+      alert(`Simulation error: ${message.message}`);
+    } else if (message.type === 'stopped') {
+      simRunning = false;
+      continuousMode = false;
+      streamFrameQueue = [];
+      streamComputedDone = false;
+      if (replayTimer) clearInterval(replayTimer);
+      replayTimer = null;
+      hideLoading();
+      document.getElementById('btn-pause').disabled = true;
+      document.getElementById('btn-execute').textContent = '▶ EXECUTE DUAL';
+      document.getElementById('btn-stop').disabled = true;
+      setMissionControlsLocked(false);
+      setDot('b', 'idle'); setProg('b', 'STOPPED');
+      setDot('t', 'idle'); setProg('t', 'STOPPED');
+    }
+  });
+  simulationSocket.addEventListener('close', () => {
+    const status = document.getElementById('sb-connection');
+    if (status) { status.textContent = 'LINK RECONNECTING'; status.className = 'sb-val disconnected'; }
+    if (simRunning) {
+      simRunning = false;
+      paused = false;
+      continuousMode = false;
+      streamFrameQueue = [];
+      streamComputedDone = false;
+      if (replayTimer) clearInterval(replayTimer);
+      replayTimer = null;
+      setMissionControlsLocked(false);
+      document.getElementById('btn-pause').disabled = true;
+      document.getElementById('btn-stop').disabled = true;
+      document.getElementById('btn-execute').textContent = '▶ EXECUTE DUAL';
+      setProg('b', 'LINK LOST'); setProg('t', 'LINK LOST');
+    }
+    if (!simRunning) setTimeout(connectSimulationSocket, 1500);
+  });
+}
+window.addEventListener('DOMContentLoaded', connectSimulationSocket);
+
+function startStreamPlayback() {
+  if (replayTimer) clearInterval(replayTimer);
+  replayTimer = setInterval(() => {
+    if (paused) return;
+    const next = streamFrameQueue.shift();
+    if (!next) {
+      if (streamComputedDone) {
+        clearInterval(replayTimer);
+        replayTimer = null;
+        simRunning = false;
+        const resultState = continuousMode ? 'STOPPED' : 'COMPLETE';
+        setDot('b', 'idle'); setProg('b', resultState);
+        setDot('t', 'idle'); setProg('t', resultState);
+        document.getElementById('btn-pause').disabled = true;
+        document.getElementById('btn-pause').textContent = '⏸ PAUSE';
+        document.getElementById('btn-pause').className = 'ctrl-btn';
+        document.getElementById('btn-execute').textContent = '▶ EXECUTE DUAL';
+        document.getElementById('btn-stop').disabled = true;
+        setMissionControlsLocked(false);
+      }
+      return;
+    }
+    const {pair, progress} = next;
+    const frameIndex = replayIdx++;
+    baselineScene.updateFromFrame(pair.baseline, frameIndex);
+    tunedScene.updateFromFrame(pair.tuned, frameIndex);
+    const total = Math.max(1, Math.ceil(Number(document.getElementById('sel-dur').value) * 2));
+    updateHUD_baseline(pair.baseline, frameIndex + 1, total);
+    updateHUD_tuned(pair.tuned, frameIndex + 1, total);
+    document.getElementById('sb-simt').textContent = `${pair.baseline.t.toFixed(1)} s`;
+    document.getElementById('sb-frame').textContent = continuousMode
+      ? `${Math.floor(pair.baseline.t / Math.max(1, Number(document.getElementById('sel-dur').value)))} cycles`
+      : `${Math.round(progress)}%`;
+    if (cameraMode === 'sync' && baselineScene && tunedScene) {
+      tunedScene.camera.position.copy(baselineScene.camera.position);
+      tunedScene.camera.quaternion.copy(baselineScene.camera.quaternion);
+      tunedScene.controls.target.copy(baselineScene.controls.target);
+    }
+  }, Math.max(25, Math.round(100 / replaySpeed)));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIMULATION EXECUTION
+// ─────────────────────────────────────────────────────────────────────────────
+async function executeDual() {
+  if (simRunning) return;
+  simRunning = true;
+  paused = false;
+  setMissionControlsLocked(true);
+
+  const nUavs = Number(document.getElementById('swarm-slider').value);
+  const durS  = parseInt(document.getElementById('sel-dur').value);
+  const seed  = Math.floor(Math.random() * 100000);
+  currentSeed = seed;
+  document.getElementById('sb-seed').textContent = seed;
+  document.getElementById('n-readout').textContent = `${nUavs} UAVs`;
+
+  // Apply the visible experiment controls to both arenas for a fair comparison.
+  const stress = {
+    sensor_noise_multiplier: Number(document.getElementById('noise-slider').value),
+    packet_loss_extra_pct: Number(document.getElementById('packet-slider').value),
+    gps_dropout_prob: stressFlags.gps ? 0.4 : 0,
+    motor_failure_prob: 0,
+    forced_failure_uav_ids: stressFlags.kill ? [2] : []
+  };
+
+  showLoading('Sending mission parameters to simulation engine…', 0);
+
+  // Reset both scenes
+  baselineScene.resetState();
+  tunedScene.resetState();
+  baselineFrames = []; tunedFrames = [];
+  baselineMetrics = null; tunedMetrics = null;
+  replayIdx = 0;
+  streamFrameQueue = [];
+  streamComputedDone = false;
+  continuousMode = true;
+  resetPending = false;
+  if (replayTimer) clearInterval(replayTimer);
+  replayTimer = null;
+
+  // Update dots to running
+  setDot('b', 'red'); setProg('b', 'RUNNING…');
+  setDot('t', 'cyan'); setProg('t', 'RUNNING…');
+  setIdx('b', null, null);
+  setIdx('t', null, null);
+
+  try {
+    showLoading('Starting baseline & tuned simulation engines…', 2);
+
+    const sharedCfg = {n_uavs: nUavs, duration_s: durS, seed, stress};
+
+    if (!simulationSocket || simulationSocket.readyState !== WebSocket.OPEN) {
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Backend WebSocket did not connect')), 8000);
+        const check = setInterval(() => {
+          if (simulationSocket?.readyState === WebSocket.OPEN) { clearInterval(check); clearTimeout(timeout); resolve(); }
+        }, 100);
+      });
+    }
+    document.getElementById('btn-pause').disabled = false;
+    document.getElementById('btn-execute').textContent = '● LIVE MISSION';
+    document.getElementById('btn-stop').disabled = false;
+    simulationSocket.send(JSON.stringify({action: 'start', compare: true, continuous: true, config: sharedCfg}));
+
+  } catch (err) {
+    hideLoading();
+    simRunning = false;
+    continuousMode = false;
+    setMissionControlsLocked(false);
+    setDot('b', 'idle'); setProg('b', 'ERROR');
+    setDot('t', 'idle'); setProg('t', 'ERROR');
+    document.getElementById('btn-execute').textContent = '▶ EXECUTE DUAL';
+    document.getElementById('btn-stop').disabled = true;
+    alert('Simulation error: ' + err.message + '\n\nEnsure the backend is running at http://localhost:8000');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FRAME REPLAY
+// ─────────────────────────────────────────────────────────────────────────────
+function startReplay(nUavs, durS) {
+  replayIdx = 0;
+  if (replayTimer) clearInterval(replayTimer);
+
+  const totalFrames = Math.max(baselineFrames.length, tunedFrames.length);
+  document.getElementById('btn-pause').disabled = false;
+
+  replayTimer = setInterval(() => {
+    if (paused) return;
+
+    if (replayIdx >= totalFrames) {
+      clearInterval(replayTimer);
+      replayTimer = null;
+      simRunning = false;
+      setDot('b', 'idle'); setProg('b', 'COMPLETE');
+      setDot('t', 'idle'); setProg('t', 'COMPLETE');
+      setIdx('b', baselineMetrics.scalability_index, baselineMetrics.robustness_index);
+      setIdx('t', tunedMetrics.scalability_index, tunedMetrics.robustness_index);
+      document.getElementById('btn-pause').disabled = true;
+      return;
+    }
+
+    const bf = baselineFrames[Math.min(replayIdx, baselineFrames.length - 1)];
+    const tf = tunedFrames[Math.min(replayIdx, tunedFrames.length - 1)];
+
+    if (bf) {
+      baselineScene.updateFromFrame(bf, replayIdx);
+      updateHUD_baseline(bf, replayIdx, totalFrames);
+    }
+    if (tf) {
+      tunedScene.updateFromFrame(tf, replayIdx);
+      updateHUD_tuned(tf, replayIdx, totalFrames);
+    }
+
+    document.getElementById('sb-frame').textContent = replayIdx + '/' + totalFrames;
+    if (bf) document.getElementById('sb-simt').textContent = (bf.t || 0).toFixed(2) + ' s';
+
+    // Camera sync mode
+    if (cameraMode === 'sync' && baselineScene && tunedScene) {
+      tunedScene.camera.position.copy(baselineScene.camera.position);
+      tunedScene.camera.quaternion.copy(baselineScene.camera.quaternion);
+      tunedScene.controls.target.copy(baselineScene.controls.target);
+    }
+
+    replayIdx++;
+  }, Math.round(FRAME_INTERVAL_MS / replaySpeed));
+}
+
+function updateHUD_baseline(frame, fi, total) {
+  const alive = frame.uavs ? frame.uavs.filter(u => u.alive !== false).length : 0;
+  const total_uavs = frame.uavs ? frame.uavs.length : 0;
+  const cov = (frame.coverage_pct || 0).toFixed(1);
+  const colls = frame.collisions || 0;
+
+  // Estimate PDR from comm_graph
+  let pdr = '—';
+  if (frame.comm_graph && frame.comm_graph.links && frame.comm_graph.links.length > 0) {
+    const avgLoss = frame.comm_graph.links.reduce((s, l) => s + (l.packet_loss_pct || 0), 0)
+                  / frame.comm_graph.links.length;
+    pdr = (100 - avgLoss).toFixed(0) + '%';
+  }
+
+  document.getElementById('b-uavs').textContent = alive + '/' + total_uavs;
+  document.getElementById('b-cov').textContent  = cov + '%';
+  document.getElementById('b-coll').textContent = colls;
+  document.getElementById('b-side-cov').textContent = cov + '%';
+  document.getElementById('b-side-cov-bar').style.width = `${Math.max(0, Math.min(100, Number(cov)))}%`;
+  document.getElementById('b-side-coll').textContent = colls;
+  document.getElementById('b-side-alive').textContent = `${alive} / ${total_uavs}`;
+  document.getElementById('b-pdr').textContent  = pdr;
+  document.getElementById('b-cov-label').textContent = `COV: ${cov}% | T: ${(frame.t||0).toFixed(1)}s`;
+  setProg('b', continuousMode ? `LIVE · ${Math.floor((frame.t || 0) / Math.max(1, Number(document.getElementById('sel-dur').value)))}×` : `${fi}/${total}`);
+  const idx = liveIndices(frame);
+  baselineMetrics = liveMetricSnapshot(frame, idx);
+  setIdx('b', idx.scalability, idx.robustness);
+}
+
+function updateHUD_tuned(frame, fi, total) {
+  const alive = frame.uavs ? frame.uavs.filter(u => u.alive !== false).length : 0;
+  const total_uavs = frame.uavs ? frame.uavs.length : 0;
+  const cov = (frame.coverage_pct || 0).toFixed(1);
+  const colls = frame.collisions || 0;
+
+  let pdr = '—';
+  if (frame.comm_graph && frame.comm_graph.links && frame.comm_graph.links.length > 0) {
+    const avgLoss = frame.comm_graph.links.reduce((s, l) => s + (l.packet_loss_pct || 0), 0)
+                  / frame.comm_graph.links.length;
+    pdr = (100 - avgLoss).toFixed(0) + '%';
+  }
+
+  document.getElementById('t-uavs').textContent = alive + '/' + total_uavs;
+  document.getElementById('t-cov').textContent  = cov + '%';
+  document.getElementById('t-coll').textContent = colls;
+  document.getElementById('t-side-cov').textContent = cov + '%';
+  document.getElementById('t-side-cov-bar').style.width = `${Math.max(0, Math.min(100, Number(cov)))}%`;
+  document.getElementById('t-side-coll').textContent = colls;
+  document.getElementById('t-side-alive').textContent = `${alive} / ${total_uavs}`;
+  document.getElementById('t-pdr').textContent  = pdr;
+  document.getElementById('t-cov-label').textContent = `COV: ${cov}% | T: ${(frame.t||0).toFixed(1)}s`;
+  setProg('t', continuousMode ? `LIVE · ${Math.floor((frame.t || 0) / Math.max(1, Number(document.getElementById('sel-dur').value)))}×` : `${fi}/${total}`);
+  const idx = liveIndices(frame);
+  tunedMetrics = liveMetricSnapshot(frame, idx);
+  setIdx('t', idx.scalability, idx.robustness);
+}
+
+function liveIndices(frame) {
+  const uavs = frame.uavs || [];
+  const n = Math.max(1, uavs.length);
+  const alive = uavs.filter(u => u.alive !== false).length;
+  const links = frame.comm_graph?.links || [];
+  const pdr = links.length
+    ? links.reduce((sum, link) => sum + (1 - Math.max(0, Math.min(100, link.packet_loss_pct || 0)) / 100), 0) / links.length
+    : Math.max(0, Math.min(1, frame.connectivity_ratio || 0));
+  const coverage = Number(frame.coverage_pct || 0);
+  const collisions = Number(frame.collisions || 0);
+  const latency = Number(frame.avg_latency_ms || 0);
+  const battery = uavs.reduce((sum, u) => sum + Number(u.battery_pct || 0), 0) / n;
+  const surveyed = (frame.pois || []).filter(p => p.surveyed).length;
+  const missionPct = surveyed / Math.max(1, (frame.pois || []).length) * 100;
+  const expectedCoverage = Math.max(1, Math.min(35, 3.2 * Math.sqrt(n)));
+  const scaleCoverage = Math.max(0, Math.min(100, coverage / expectedCoverage * 100));
+  const throughput = Math.max(0, Math.min(100, 100 * (1 - latency / 250) * pdr));
+  const safety = Math.max(0, Math.min(100, 100 * (1 - collisions / Math.max(1, 0.5 * n))));
+  const survivability = 100 * (alive / n) * Math.max(0, 1 - collisions / n);
+  return {
+    scalability: 0.35 * scaleCoverage + 0.35 * throughput + 0.30 * safety,
+    robustness: 0.35 * missionPct + 0.30 * survivability + 0.20 * 100 * pdr + 0.15 * battery,
+    packetDeliveryRatio: pdr
+  };
+}
+
+function liveMetricSnapshot(frame, indices) {
+  return {
+    scalability_index: indices.scalability,
+    robustness_index: indices.robustness,
+    coverage_pct: Number(frame.coverage_pct || 0),
+    collision_count: Number(frame.collisions || 0),
+    packet_delivery_ratio: indices.packetDeliveryRatio,
+    avg_latency_ms: Number(frame.avg_latency_ms || 0),
+    alive_uavs: (frame.uavs || []).filter(u => u.alive !== false).length
+  };
+}
+
+function setIdx(arena, sidx, ridx) {
+  const key = arena === 'b' ? 'baseline' : 'tuned';
+  liveArenaIndices[key] = sidx === null ? null : {scalability:Number(sidx), robustness:Number(ridx)};
+  updatePerformanceStrip();
+  const sEl = document.getElementById(arena + '-sidx');
+  const rEl = document.getElementById(arena + '-ridx');
+  const sideS = document.getElementById(arena + '-side-sidx');
+  const sideR = document.getElementById(arena + '-side-ridx');
+  if (sidx === null) {
+    sEl.textContent = 'CALC…'; sEl.className = 'sc-val muted';
+    rEl.textContent = 'CALC…'; rEl.className = 'sc-val muted';
+    if (sideS) sideS.textContent = 'CALC…';
+    if (sideR) sideR.textContent = 'CALC…';
+  } else {
+    sEl.textContent = Number(sidx).toFixed(1);
+    sEl.className = 'sc-val ' + (arena === 'b' ? 'red' : 'cyan');
+    rEl.textContent = Number(ridx).toFixed(1);
+    rEl.className = 'sc-val ' + (arena === 'b' ? 'red' : 'cyan');
+    if (sideS) sideS.textContent = `${Number(sidx).toFixed(1)} / 100`;
+    if (sideR) sideR.textContent = `${Number(ridx).toFixed(1)} / 100`;
+  }
+}
+
+function updatePerformanceStrip() {
+  const baseline = liveArenaIndices.baseline;
+  const tuned = liveArenaIndices.tuned;
+  const gain = (base, proposed) => {
+    if (!baseline || !tuned) return '+—%';
+    if (Math.abs(base) < 0.01) return proposed > 0 ? '+100.0%' : '0.0%';
+    const value = (proposed - base) / Math.abs(base) * 100;
+    return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+  };
+  const scalEl = document.getElementById('scalability-gain');
+  const robustEl = document.getElementById('robustness-gain');
+  if (!scalEl || !robustEl) return;
+  const scal = baseline && tuned ? (tuned.scalability - baseline.scalability) / Math.max(0.01, Math.abs(baseline.scalability)) * 100 : null;
+  const robust = baseline && tuned ? (tuned.robustness - baseline.robustness) / Math.max(0.01, Math.abs(baseline.robustness)) * 100 : null;
+  scalEl.textContent = gain(baseline?.scalability, tuned?.scalability);
+  robustEl.textContent = gain(baseline?.robustness, tuned?.robustness);
+  scalEl.style.color = scal === null || scal >= 0 ? 'var(--emerald)' : 'var(--red)';
+  robustEl.style.color = robust === null || robust >= 0 ? 'var(--emerald)' : 'var(--red)';
+}
+
+function setDot(arena, state) {
+  const dot = document.getElementById(arena + '-dot');
+  dot.className = 'prog-dot ' + (state === 'red' ? 'red' : state === 'cyan' ? 'cyan' : 'idle');
+}
+
+function setProg(arena, txt) {
+  document.getElementById(arena + '-prog-txt').textContent = txt;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTROLS
+// ─────────────────────────────────────────────────────────────────────────────
+function togglePause() {
+  paused = !paused;
+  if (simulationSocket?.readyState === WebSocket.OPEN) simulationSocket.send(JSON.stringify({action: paused ? 'pause' : 'resume'}));
+  document.getElementById('btn-pause').textContent = paused ? '▶ RESUME' : '⏸ PAUSE';
+  document.getElementById('btn-pause').className   = 'ctrl-btn' + (paused ? ' active' : '');
+}
+
+function resetAll() {
+  const wasRunning = simRunning;
+  resetPending = wasRunning;
+  if (wasRunning && simulationSocket?.readyState === WebSocket.OPEN) simulationSocket.send(JSON.stringify({action: 'stop'}));
+  if (replayTimer) clearInterval(replayTimer);
+  replayTimer = null;
+  simRunning = false;
+  paused = false;
+  replayIdx = 0;
+  streamFrameQueue = [];
+  streamComputedDone = false;
+  continuousMode = false;
+  baselineScene.resetState();
+  tunedScene.resetState();
+  baselineFrames = []; tunedFrames = [];
+  baselineMetrics = null; tunedMetrics = null;
+  setDot('b', 'idle'); setProg('b', 'IDLE');
+  setDot('t', 'idle'); setProg('t', 'IDLE');
+  ['b-uavs','b-cov','b-coll','b-pdr','t-uavs','t-cov','t-coll','t-pdr'].forEach(id => {
+    document.getElementById(id).textContent = '—';
+  });
+  ['b-cov-label','t-cov-label'].forEach(id => {
+    document.getElementById(id).textContent = 'COV: —% | T: —s';
+  });
+  ['b-side-cov','b-side-coll','b-side-sidx','b-side-ridx',
+   't-side-cov','t-side-coll','t-side-sidx','t-side-ridx'].forEach(id => {
+    document.getElementById(id).textContent = id.endsWith('cov') ? '0.0%' : '—';
+  });
+  ['b-side-alive','t-side-alive'].forEach(id => { document.getElementById(id).textContent = '— / —'; });
+  ['b-side-cov-bar','t-side-cov-bar'].forEach(id => { document.getElementById(id).style.width = '0%'; });
+  setIdx('b', null, null);
+  setIdx('t', null, null);
+  document.getElementById('b-sidx').textContent = 'STBY';
+  document.getElementById('b-ridx').textContent = 'STBY';
+  document.getElementById('t-sidx').textContent = 'STBY';
+  document.getElementById('t-ridx').textContent = 'STBY';
+  document.getElementById('btn-pause').disabled = true;
+  document.getElementById('btn-pause').textContent = '⏸ PAUSE';
+  document.getElementById('btn-pause').className = 'ctrl-btn';
+  document.getElementById('btn-execute').textContent = '▶ EXECUTE DUAL';
+  document.getElementById('btn-stop').disabled = true;
+  setMissionControlsLocked(false);
+  liveArenaIndices.baseline = null;
+  liveArenaIndices.tuned = null;
+  updatePerformanceStrip();
+  hideLoading();
+  document.getElementById('sb-frame').textContent = '—';
+  document.getElementById('sb-simt').textContent = '0.00 s';
+  onSwarmChange(document.getElementById('swarm-slider').value);
+}
+
+function setCameraMode(mode) {
+  cameraMode = mode;
+  if (mode !== 'sync') {
+    baselineScene.setCameraPreset(mode === 'sync' ? 'orbit' : mode);
+    tunedScene.setCameraPreset(mode === 'sync' ? 'orbit' : mode);
+  }
+}
+
+function setMissionControlsLocked(locked) {
+  // Stress controls remain live during a mission; fleet size is applied on the next run.
+  const swarm = document.getElementById('swarm-slider');
+  if (swarm) swarm.title = locked ? 'Fleet size changes apply on the next mission' : 'Fleet size for the next mission';
+}
+
+function onSpeedChange(val) {
+  replaySpeed = parseFloat(val);
+  document.getElementById('speed-label').textContent = replaySpeed.toFixed(1) + '×';
+  if (replayTimer && !paused) startStreamPlayback();
+}
+
+function toggleStress(key) {
+  stressFlags[key] = !stressFlags[key];
+  const btn = document.getElementById('btn-' + key);
+  if (!btn) return;
+  btn.classList.toggle('active', stressFlags[key]);
+  btn.setAttribute('aria-pressed', String(stressFlags[key]));
+  if (key === 'gps') btn.textContent = stressFlags.gps ? `🛰 GPS DROPOUT: ${simRunning ? 'ON' : 'ARMED'}` : '🛰 GPS DROPOUT: OFF';
+  if (key === 'kill') btn.textContent = stressFlags.kill ? `⚡ DRONE #3 FAILURE: ${simRunning ? 'ACTIVE' : 'ARMED'}` : '⚡ KILL DRONE #3 (FAILOVER TEST)';
+  sendLiveSettings();
+}
+
+function sendLiveSettings() {
+  if (!simRunning || !simulationSocket || simulationSocket.readyState !== WebSocket.OPEN) return;
+  simulationSocket.send(JSON.stringify({action:'update', settings:{
+    sensor_noise_multiplier:Number(document.getElementById('noise-slider').value),
+    packet_loss_extra_pct:Number(document.getElementById('packet-slider').value),
+    gps_dropout_prob:stressFlags.gps ? 0.4 : 0,
+    forced_failure_uav_ids:stressFlags.kill ? [2] : []
+  }}));
+}
+
+function onSwarmChange(value) {
+  const count = Number(value);
+  document.getElementById('n-readout').textContent = simRunning ? `${count} UAVs · NEXT RUN` : `${count} UAVs`;
+  document.getElementById('swarm-value').textContent = `${count} UAVs`;
+}
+
+function onNoiseChange(value) {
+  document.getElementById('noise-value').textContent = `${Number(value).toFixed(1)}×`;
+  sendLiveSettings();
+}
+
+function onPacketLossChange(value) {
+  const loss = Number(value);
+  document.getElementById('packet-value').textContent = `${loss}%`;
+  sendLiveSettings();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOADING OVERLAY
+// ─────────────────────────────────────────────────────────────────────────────
+function showLoading(msg, pct) {
+  const ov = document.getElementById('loading-overlay');
+  ov.classList.remove('hidden');
+  document.getElementById('ld-sub').textContent = msg;
+  document.getElementById('ld-fill').style.width = pct + '%';
+}
+
+function hideLoading() {
+  const ov = document.getElementById('loading-overlay');
+  document.getElementById('ld-fill').style.width = '100%';
+  setTimeout(() => ov.classList.add('hidden'), 300);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPARISON MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+function showComparison() {
+  const modal = document.getElementById('cmp-modal');
+  document.querySelector('.cmp-box').classList.remove('matrix-box');
+  document.getElementById('cmp-title').textContent = 'Mission Comparison Results';
+  document.getElementById('cmp-grid').classList.remove('matrix');
+  modal.classList.add('show');
+
+  const bm = baselineMetrics;
+  const tm = tunedMetrics;
+
+  if (!bm || !tm) {
+    document.getElementById('cmp-sub').textContent = 'Run a dual simulation first to see comparison results.';
+    document.getElementById('cmp-grid').innerHTML = `
+      <div class="cmp-col-h metric">METRIC</div>
+      <div class="cmp-col-h base">▲ BASELINE</div>
+      <div class="cmp-col-h tune">◆ TUNED</div>
+      <div class="cmp-cell label">No data yet</div>
+      <div class="cmp-cell">—</div>
+      <div class="cmp-cell">—</div>`;
+    return;
+  }
+
+  const rows = [
+    ['Scalability Index', bm.scalability_index, tm.scalability_index, true, '.1f'],
+    ['Robustness Index', bm.robustness_index, tm.robustness_index, true, '.1f'],
+    ['Coverage %', bm.coverage_pct, tm.coverage_pct, true, '.1f'],
+    ['Collisions', bm.collision_count || 0, tm.collision_count || 0, false, 'd'],
+    ['PDR %', (bm.packet_delivery_ratio||0)*100, (tm.packet_delivery_ratio||0)*100, true, '.1f'],
+    ['Avg Latency ms', bm.avg_latency_ms||0, tm.avg_latency_ms||0, false, '.1f'],
+    ['Alive UAVs', bm.alive_uavs||0, tm.alive_uavs||0, true, 'd'],
+  ];
+
+  const nSeed = document.getElementById('sb-seed').textContent;
+  document.getElementById('cmp-sub').textContent =
+    `Seed ${nSeed} · N=${document.getElementById('swarm-slider').value} · ${document.getElementById('sel-dur').value}s`;
+
+  let html = `<div class="cmp-col-h metric">METRIC</div>
+              <div class="cmp-col-h base">▲ BASELINE</div>
+              <div class="cmp-col-h tune">◆ TUNED</div>`;
+
+  rows.forEach(([label, bv, tv, higherBetter, fmt]) => {
+    const bStr = formatVal(bv, fmt);
+    const tStr = formatVal(tv, fmt);
+    const delta = tv - bv;
+    const pct = bv !== 0 ? ((delta / Math.abs(bv)) * 100).toFixed(1) : '—';
+    const better = higherBetter ? delta > 0 : delta < 0;
+    const badge = delta !== 0
+      ? `<span class="delta-badge ${better ? 'pos' : 'neg'}">${better ? '+' : ''}${formatVal(delta, fmt)}</span>`
+      : '';
+
+    html += `<div class="cmp-cell label">${label}</div>
+             <div class="cmp-cell ${!better && delta !== 0 ? 'worse' : ''}">${bStr}</div>
+             <div class="cmp-cell ${better ? 'better' : delta !== 0 ? 'worse' : ''}">${tStr} ${badge}</div>`;
+  });
+
+  document.getElementById('cmp-grid').innerHTML = html;
+}
+
+async function runStatisticalMatrix() {
+  const button = document.getElementById('btn-matrix');
+  const modal = document.getElementById('cmp-modal');
+  const grid = document.getElementById('cmp-grid');
+  document.querySelector('.cmp-box').classList.add('matrix-box');
+  button.disabled = true;
+  button.textContent = '⏳ RUNNING MATRIX…';
+  document.getElementById('cmp-title').textContent = '30-Run Monte Carlo Benchmark Matrix & Ablation Study';
+  document.getElementById('cmp-sub').textContent = 'Running paired trials at N = 5, 10, 25 and 50, then evaluating one-parameter-at-a-time ablations.';
+  grid.classList.add('matrix');
+  grid.innerHTML = '<div class="cmp-cell label" id="matrix-progress" style="grid-column:1/-1">Starting 30-run benchmark… this can take a few minutes.</div>';
+  modal.classList.add('show');
+  const progressTimer = setInterval(async () => {
+    try {
+      const statusResponse = await fetch('/api/benchmark/status');
+      if (!statusResponse.ok) return;
+      const status = await statusResponse.json();
+      const progress = document.getElementById('matrix-progress');
+      if (!progress || status.state !== 'running') return;
+      const pct = status.total ? Math.round(status.completed / status.total * 100) : 0;
+      const current = status.swarm_size
+        ? `N=${status.swarm_size}, paired run ${status.trial}/30`
+        : 'Preparing benchmark';
+      progress.innerHTML = `<strong>${pct}%</strong> · ${status.completed}/${status.total} paired runs complete · ${current}<div style="height:7px;margin-top:10px;background:#1c2940;border-radius:8px;overflow:hidden"><span style="display:block;width:${pct}%;height:100%;background:var(--cyan);transition:width .25s"></span></div><small>Keep this browser tab open until the result table appears.</small>`;
+    } catch (_) { /* The main request reports any benchmark failure. */ }
+  }, 1000);
+  try {
+    const response = await fetch('/api/benchmark/batch?trials=30', {method:'POST'});
+    if (!response.ok) throw new Error(`Benchmark request failed (${response.status})`);
+    const result = await response.json();
+    const headings = ['Swarm Size (N)', 'Baseline Coverage', 'Tuned Coverage', 'Baseline Collisions', 'Tuned Collisions', 'Scalability Gain', 'Robustness Gain'];
+    let table = `<div class="cmp-section-title">1. Scalability &amp; Robustness Across Swarm Sizes (N)</div>`
+      + headings.map((heading, index) => `<div class="cmp-col-h ${index === 0 ? 'metric' : index === 1 || index === 3 ? 'base' : 'tune'}">${heading}</div>`).join('');
+    Object.values(result.data || {}).forEach(row => {
+      const b = row.baseline, t = row.tuned;
+      const scaleGain = row.improvements?.scalability_gain_pct;
+      const robustGain = row.improvements?.robustness_gain_pct;
+      table += `<div class="cmp-cell label">N = ${row.swarm_size} · ${row.trials_conducted} runs</div>`
+        + `<div class="cmp-cell worse">${formatVal(b.coverage_mean,'.1f')}% ± ${formatVal(b.coverage_std,'.1f')}</div>`
+        + `<div class="cmp-cell better">${formatVal(t.coverage_mean,'.1f')}% ± ${formatVal(t.coverage_std,'.1f')}</div>`
+        + `<div class="cmp-cell worse">${formatVal(b.collisions_mean,'.1f')} ± ${formatVal(b.collisions_std,'.1f')}</div>`
+        + `<div class="cmp-cell better">${formatVal(t.collisions_mean,'.1f')} ± ${formatVal(t.collisions_std,'.1f')}</div>`
+        + `<div class="cmp-cell better">${formatVal(scaleGain,'.1f')}%</div>`
+        + `<div class="cmp-cell better">${formatVal(robustGain,'.1f')}%</div>`;
+    });
+    const ablationResponse = await fetch('/api/analytics/ablation');
+    if (!ablationResponse.ok) throw new Error(`Ablation request failed (${ablationResponse.status})`);
+    const ablation = await ablationResponse.json();
+    table += `<div class="cmp-section-title">2. One-Parameter-at-a-Time Ablation Study</div>`
+      + `<div class="cmp-col-h metric" style="grid-column:span 3">Configuration Variant</div>`
+      + `<div class="cmp-col-h tune">Scalability Index</div>`
+      + `<div class="cmp-col-h tune">Robustness Index</div>`
+      + `<div class="cmp-col-h metric" style="grid-column:span 2">Empirical Impact</div>`;
+    (ablation.variants || []).forEach(variant => {
+      table += `<div class="cmp-cell label" style="grid-column:span 3">${variant.variant}</div>`
+        + `<div class="cmp-cell better">${formatVal(variant.scalability_index,'.1f')}</div>`
+        + `<div class="cmp-cell better">${formatVal(variant.robustness_index,'.1f')}</div>`
+        + `<div class="cmp-cell label" style="grid-column:span 2">${variant.impact || variant.reverted_parameter}</div>`;
+    });
+    grid.innerHTML = table;
+    document.getElementById('cmp-sub').textContent = `${result.methodology} · ${result.trials_per_size} paired runs per swarm size · ${result.data ? 'Coverage/collision statistics plus computed ablation results' : ''}`;
+  } catch (error) {
+    grid.innerHTML = `<div class="cmp-cell label" style="grid-column:1/-1">Could not complete benchmark: ${error.message}</div>`;
+  } finally {
+    clearInterval(progressTimer);
+    button.disabled = false;
+    button.textContent = '📊 30-RUN MATRIX';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => onSwarmChange(document.getElementById('swarm-slider').value));
+
+function formatVal(v, fmt) {
+  if (v === undefined || v === null || isNaN(v)) return '—';
+  if (fmt === 'd') return Math.round(v).toString();
+  return Number(v).toFixed(1);
+}
+
+function closeComparison() {
+  document.getElementById('cmp-modal').classList.remove('show');
+  document.querySelector('.cmp-box').classList.remove('matrix-box');
+  document.getElementById('cmp-grid').classList.remove('matrix');
+}
+
+document.getElementById('cmp-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeComparison();
+});
+</script>
+</body>
+</html>

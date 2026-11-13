@@ -1,0 +1,8 @@
+# Runtime dependencies for the root FastAPI + UAV simulation application.
+fastapi>=0.115,<1.0
+numpy>=1.24,<3.0
+pydantic>=2.6,<3.0
+uvicorn[standard]>=0.30,<1.0
+
+# Required by Starlette's TestClient in the current project environment.
+httpx2>=2.0,<3.0

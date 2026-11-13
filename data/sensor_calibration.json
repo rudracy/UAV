@@ -1,0 +1,62 @@
+{
+  "dataset_metadata": {
+    "name": "EuRoC Micro Aerial Vehicle Dataset Calibration",
+    "institution": "Autonomous Systems Lab (ASL), ETH Zurich",
+    "sensor_payload": "Analog Devices ADIS16448 IMU & SkyTraq GPS-RTK",
+    "vehicle_platform": "AscTec Firefly Hexacopter",
+    "sampling_rates": {
+      "imu_hz": 200,
+      "gps_nominal_hz": 10,
+      "mesh_comm_tuned_hz": 5,
+      "mesh_comm_baseline_hz": 20
+    }
+  },
+  "imu_noise_parameters": {
+    "accelerometer": {
+      "noise_density_continuous": 0.002,
+      "noise_density_unit": "m / (s * sqrt(s))",
+      "random_walk_bias_drift": 0.0003,
+      "random_walk_unit": "m / (s^2 * sqrt(s))",
+      "discrete_variance_200hz": 8.0e-4
+    },
+    "gyroscope": {
+      "noise_density_continuous": 0.0004,
+      "noise_density_unit": "rad / (s * sqrt(s))",
+      "random_walk_bias_drift": 0.00004,
+      "random_walk_unit": "rad / (s * sqrt(s))",
+      "discrete_variance_200hz": 3.2e-5
+    }
+  },
+  "gps_outage_model": {
+    "nominal_position_variance_m": 0.09,
+    "degraded_multipath_variance_m": 42.25,
+    "nominal_dop": 1.2,
+    "degraded_dop": 8.4,
+    "urban_canyon_loss_probability": 0.35,
+    "average_dropout_duration_sec": 4.5
+  },
+  "dryden_wind_turbulence": {
+    "mil_standard": "MIL-F-8785C",
+    "gust_sigma_u_mps": 1.2,
+    "gust_sigma_v_mps": 1.2,
+    "gust_sigma_w_mps": 0.8,
+    "turbulence_scale_length_m": 150.0
+  },
+  "system_parameters": {
+    "baseline": {
+      "theta1_safety_buffer_m": 0.6,
+      "theta2_sensor_fusion_gain": 1.0,
+      "theta3_comm_frequency_hz": 20.0,
+      "theta4_network_topology": "All-to-All Broadcast",
+      "theta5_dynamic_failover": false
+    },
+    "tuned": {
+      "theta1_safety_buffer_m": 2.8,
+      "theta2_sensor_fusion_gain": 0.22,
+      "theta3_comm_frequency_hz": 5.0,
+      "theta4_network_topology": "k-Nearest Mesh (k=4)",
+      "theta5_dynamic_failover": true
+    }
+  }
+}
+
